@@ -5,9 +5,10 @@ Flask is a Python Library to develop backend applications and API. It is very ve
 I am listing down all the things I learnt about Flask in this documentation.
 Following are the topics covered-
 
-1. First application using Flask
-2. Registration using Flask and HTML
-3. Database connection
+1. First application using Flask `001-First-Flask-App`
+2. Registration using Flask and HTML `002-Flask-Register`
+3. Database connection `003-Flask-Database`
+4. Login Authentication `004-Flask-Authentication`
 
 ## First application using Flask
 
@@ -135,3 +136,191 @@ searchword = request.args.get('key', '')
 > It is recommended to access URL parameters with get or by catching the **KeyError** because users might change the URL and presenting them a 400 bad request page in that case is not user friendly.
 
 ## Database connection
+
+I am connecting with MySQL database in this example. To do that first I need to install the `mysql-connector-python` library. So, first I will install it using `pip`.
+
+For starters I will make the database using MySQL workbench to make things simpler (If I already have a database with table then I won't have to write code for that in Python).
+
+In this example, I am creating `flasklearning` database in MySQL with `user` table. Following is the mysql code for that-
+
+_schema.sql_
+
+```sql
+DROP SCHEMA IF EXISTS flasklearning;
+CREATE SCHEMA IF NOT EXISTS flasklearning;
+
+USE flasklearning;
+
+CREATE TABLE user (
+	user_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    user_name VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    pass VARCHAR(1000) NOT NULL
+)ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+```
+
+Then, I copy pasted the mysql connector code from [official documentation](https://dev.mysql.com/doc/connector-python/en/connector-python-example-connecting.html).
+
+Code is used to connect with the MySQL workbench-
+
+_connect_to_mysql.py_
+
+```python
+import logging
+import time
+import mysql.connector
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+# Log to console
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# Also log to a file
+file_handler = logging.FileHandler("cpy-errors.log")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+def connect_to_mysql(config, attempts=3, delay=2):
+    attempt = 1
+    # Implement a reconnection routine
+    while attempt < attempts + 1:
+        try:
+            return mysql.connector.connect(**config)
+        except (mysql.connector.Error, IOError) as err:
+            if (attempts is attempt):
+                # Attempts to reconnect failed; returning None
+                logger.info("Failed to connect, exiting without a connection: %s", err)
+                return None
+            logger.info(
+                "Connection failed: %s. Retrying (%d/%d)...",
+                err,
+                attempt,
+                attempts-1,
+            )
+            # progressive reconnect delay
+            time.sleep(delay ** attempt)
+            attempt += 1
+    return None
+```
+
+For explanation about the code, refer to the official documentation.
+
+Next, I am creating the flask application which will send the user name, email and password to the server. The data coming from client will then be used for writing query that will insert these values in the database table `user`.
+
+_app.py_
+
+```python
+from flask import Flask, request, render_template
+from connect_to_mysql import connect_to_mysql
+
+app = Flask(__name__)
+
+config = {
+    "host": 'localhost',
+    "user": 'root',
+    "password": 'arup#123',
+    "database": 'flasklearning'
+}
+
+@app.route("/")
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method=="POST":
+
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+
+        cnx = connect_to_mysql(config)
+        if cnx and cnx.is_connected():
+            with cnx.cursor() as cursor:
+                cursor.execute('INSERT INTO user(user_name, email, pass) VALUES(%s, %s, %s)', (username, email, password))
+                cnx.commit()
+
+            cnx.close()
+        else:
+            print("Failed to connect...")
+            return render_template("reg_fail.html")
+
+        return render_template("reg_succs.html")
+
+    return render_template("register.html")
+```
+
+The code is almost similar to previous example but with some additional code like the `config` variable which stores the keyword arguments to connect with the mysql database. It will be passed to `connect_to_mysql` function.
+
+Next comes the main part where the insertion of user data is performed-
+
+```python
+cnx = connect_to_mysql(config)
+if cnx and cnx.is_connected():
+    with cnx.cursor() as cursor:
+        cursor.execute('INSERT INTO user(user_name, email, pass) VALUES(%s, %s, %s)', (username, email, password))
+        cnx.commit()
+
+    cnx.close()
+```
+
+`cnx` is the connection object that is used to connect with mysql database. Then, with `cnx` I can get the `cursor` for executing the mysql query. Although I have to be careful that connection is valid, for that I used **is_connected()** method. The cursor need to be closed as well so I used the `with` statement in Python to take care of that automatically.
+
+The **execute()** method is used to execute the query, it takes 2 arguments - one is the query statement with `%s` as the placeholder and another argument is the variables that will be placed as the value of those placeholders.
+
+Lastly close the connection using **close()** method.
+
+> I used 2 additional html files for showing users that the registration is successful or failed.
+
+## Login Authentication
+
+I am trying to validate users of my website and only let them go to the main page if they are registered users.
+
+To achieve this, I am will almost do the same thing as before, just the query will change.
+
+Instead of `INSERT`, I will `SELECT` the users whose `username` and `password` match with `user_name` and `pass` present in the database.
+
+As the database only allows unique `user_name` I will get the one result if I get any.
+
+Code for achieving all this-
+
+_app.py_
+
+```python
+from flask import Flask, request, render_template
+from connect_to_mysql import connect_to_mysql
+
+app = Flask(__name__)
+
+config = {
+    "host": "localhost",
+    "user": "root",
+    "password": "arup#123",
+    "database": "flasklearning"
+}
+
+@app.route("/")
+@app.route("/login", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+
+        cnx = connect_to_mysql(config)
+        if cnx and cnx.is_connected():
+            row = None
+            with cnx.cursor() as cursor:
+                cursor.execute('SELECT * FROM user WHERE user_name=%s AND pass=%s', (username, password, ))
+
+                row = cursor.fetchone()
+                if not row:
+                    return render_template("login_fail.html")
+
+            cnx.close()
+            return render_template("login_succs.html", username = row[1])
+    return render_template("login.html")
+```
+
+As you can see the query this time is `cursor.execute('SELECT * FROM user WHERE user_name=%s AND pass=%s', (username, password, ))` and I am also checking whether there exists any row that has same `user_name` and `pass`. If such row exists then send the login successful message otherwise send the login failure message.
