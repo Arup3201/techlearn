@@ -1,0 +1,164 @@
+/* 
+FONT
+Font family: "Geologica", sans-serif;
+
+Font Size:
+Normal text
+1.6rem
+1.8rem
+2.4rem
+3.2rem
+Long text
+2.0rem
+2.8rem
+Headings
+5rem
+6rem
+
+Font weight:
+Normal text 500
+Heading 700
+
+Line Spacing
+1.2 Blog heading
+1.52 Blog content
+
+COLOR
+Main: #1c7ed6
+Accent: #8338ec
+Grey: #030d15cc
+
+Shades:
+#030d15
+#0b3256
+#145896
+
+Tints:
+#4998de
+#8ebfeb
+#e8f2fb
+
+Padding & Margin:
+0.5rem
+1rem
+1.5rem
+
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@100..900&display=swap');
+
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 10px;
+}
+
+body {
+    font-family: "Geologica", sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #030d15cc;
+    background: linear-gradient(to left, #145896, #4998de);
+}
+
+.container {
+    width: 70%;
+    margin: auto;
+    margin-top: 4rem;
+    border: 0;
+    border-radius: 1.5rem;
+    background-color: #e8f2fb;
+
+    display: flex;
+}
+
+.form-container {
+    width: 50%;
+    padding: 1.5rem;
+}
+
+.form-heading {
+    margin-bottom: 1.5rem;
+}
+
+.form-heading h1 {
+    letter-spacing: 1.2px;
+}
+
+.form-heading p {
+    color: #030d1588;
+    letter-spacing: 1px;
+    line-height: 1.5;
+}
+
+.form-container form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.form-input {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    width: 100%;
+}
+
+.form-input input {
+    font-family: "Geologica", sans-serif;
+    font-size: 1.6rem;
+    padding: 0.5rem;
+    height: 4rem;
+    width: 100%;
+    border: 0;
+    border-radius: 1rem;
+    transition: box-shadow 100ms;
+}
+
+.form-input input:focus {
+    outline: none;
+    box-shadow: 0px 0px 0px 2px #0b3256 inset;
+}
+
+.rme {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#rememberme {
+    width:min-content;
+    margin-right: 1rem;
+}
+
+.btn {
+    font-family: "Geologica", sans-serif;
+    font-size: 1.6rem;
+    text-align: center;
+    padding: 1rem;
+    margin-top: 1.5rem;
+    border: 0;
+    border-radius: 1rem;
+    cursor: pointer;
+    background-color: #1c7ed6;
+    color: #e8f2fb;
+    transition: all 100ms;
+}
+
+.btn:hover {
+    background-color: #e8f2fb;
+    color:  #1c7ed6;
+    box-shadow: 0px 0px 0px 2px inset #1c7ed6;
+}
+
+.img-container {
+    width: 50%;
+    background: no-repeat center/120%   url("login-img.png"), #fff;
+    border-top-right-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
+}
