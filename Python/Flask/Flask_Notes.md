@@ -9,6 +9,8 @@ Following are the topics covered-
 2. Registration using Flask and HTML `002-Flask-Register`
 3. Database connection `003-Flask-Database`
 4. Login Authentication `004-Flask-Authentication`
+5. Login and Register using SQLAlchemy
+6. Blueprints
 
 ## First application using Flask
 
@@ -324,3 +326,277 @@ def index():
 ```
 
 As you can see the query this time is `cursor.execute('SELECT * FROM user WHERE user_name=%s AND pass=%s', (username, password, ))` and I am also checking whether there exists any row that has same `user_name` and `pass`. If such row exists then send the login successful message otherwise send the login failure message.
+
+## Login and Register using SQLAlchemy
+
+The folder structure for this small project-
+
+```
+- run.py
+- app
+    - __init__.py
+    - model.py
+    - templates
+        - login.html
+        - login_fail.html
+        - login_succs.html
+```
+
+### What is SQLAlchemy?
+
+SQLAlchemy is the Python SQL toolkit and Object Relational Mapper that gives application developers the full power and flexibility of SQL.
+
+It provides a full suite of well known enterprise-level persistence patterns, designed for efficient and high-performing database access, adapted into a simple and Pythonic domain language.
+
+### What is Flask-SQLAlchemy
+
+Flask-SQLAlchemy simplifies using SQLAlchemy by automatically handling creating, using, and cleaning up the SQLAlchemy objects you’d normally work with. While it adds a few useful features, it still works like SQLAlchemy.
+
+```
+pip install -U Flask-SQLAlchemy
+```
+
+### Initialize the Extension
+
+First create the `db` object using the `SQLAlchemy` constructor.
+
+Pass a subclass of either `DeclarativeBase` or `DeclarativeBaseNoMeta` to the constructor.
+
+_model.py_
+
+```python
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+  pass
+
+db = SQLAlchemy(model_class=Base)
+```
+
+Once constructed, the `db` object gives you access to the `db.Model` class to define models, and the `db.session` to execute queries.
+
+### Configure the Extension
+
+The next step is to connect the extension to your Flask app. The only required Flask app config is the **SQLALCHEMY_DATABASE_URI** key. That is a connection string that tells SQLAlchemy what database to connect to.
+
+Create your Flask application object, load any config, and then initialize the `SQLAlchemy` extension class with the application by calling `db.init_app`. This example connects to a MySQL database, which is already created.
+
+_\_\_init\_\_.py_
+
+```python
+def create_app():
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:arup#123@localhost/flasklearning'
+
+    from app.model import db
+    db.init_app(app)
+
+    # ...
+```
+
+### Define model
+
+Subclass `db.Model` to define a model class. The model will generate a table name by converting the `CamelCase` class name to `snake_case`.
+
+_model.py_
+
+```python
+from sqlalchemy.orm import Mapped, mapped_column
+
+# ...
+
+class User(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str]
+    email: Mapped[str] = mapped_column(unique=True)
+    password: Mapped[str]
+```
+
+### Create the Tables
+
+After all models and tables are defined, call SQLAlchemy.create_all() to create the table schema in the database. This requires an application context. Since you’re not in a request at this point, create one manually.
+
+_\_\_init\_\_.py_
+
+```python
+def create_app():
+    # ...
+
+    from app.model import db
+    with app.app_context():
+        db.create_all()
+
+    # ...
+```
+
+If you define models in other modules, you must import them before calling create_all, otherwise SQLAlchemy will not know about them.
+
+> **create_all** does not update tables if they are already in the database. If you change a model’s columns, use a migration library like Alembic with Flask-Alembic or Flask-Migrate to generate migrations that update the database schema.
+
+### Add register and login route
+
+#### Selecting user by filtering for login
+
+Queries are executed through `db.session.execute()`. They can be constructed using **select()**. Executing a select returns a `Result` object that has many methods for working with the returned rows.
+
+To learn more ways of selecting, refer to this [documentation](https://docs.sqlalchemy.org/en/20/orm/queryguide/index.html).
+
+```python
+def create_app():
+    # ...
+    from app.model import db, User
+    # ...
+
+    @app.route("/")
+    @app.route("/login", methods=["GET", "POST"])
+    def index():
+        if request.method == "POST":
+            username = request.form['username']
+            password = request.form['password']
+            user = db.session.execute(db.select(User).filter_by(username=username)).scalar()
+            if password == user.password:
+                return render_template("login_succs.html", username = user.username)
+            else:
+                return render_template("login_fail.html")
+
+        return render_template("login.html")
+
+    # ...
+```
+
+#### Adding user in the databse for registration
+
+Generate the data by sending user data to `User` class and making an instance of the class.
+
+To insert data, pass the model object to `db.session.add()` and after doing modification commit it in the database using `db.session.commit()`. In case of `IngtigityError`, use `try-except` block to take care of it.
+
+```python
+def create_app():
+    # ...
+
+    @app.route("/register", methods=["GET", "POST"])
+    def register():
+        if request.method=="POST":
+            user = User(username=request.form['username'], email=request.form['email'], password=request.form['password'])
+            db.session.add(user)
+            try:
+                db.session.commit()
+                return render_template("reg_succs.html")
+            except:
+                return render_template("reg_fail.html")
+
+        return render_template("register.html")
+
+    # ...
+```
+
+### More Notes!
+
+#### Connection URL Format
+
+A basic database connection URL uses the following format. Username, password, host, and port are optional depending on the database type and configuration.
+
+```
+dialect://username:password@host:port/database
+```
+
+Here are some example connection strings:
+
+```
+# SQLite, relative to Flask instance path
+sqlite:///project.db
+
+# PostgreSQL
+postgresql://scott:tiger@localhost/project
+
+# MySQL / MariaDB
+mysql://scott:tiger@localhost/project
+```
+
+SQLite does not use a user or host, so its URLs always start with _three_ slashes instead of two. The dbname value is a file path. Absolute paths start with a _fourth_ slash (on Linux or Mac). Relative paths are relative to the Flask application’s instance_path.
+
+#### Application Factories
+
+If you are already using packages and blueprints for your application ([Modular Applications with Blueprints](https://flask.palletsprojects.com/en/3.0.x/blueprints/)) there are a couple of really nice ways to further improve the experience. A common pattern is creating the application object when the blueprint is imported. But if you move the creation of this object into a function, you can then create multiple instances of this app later.
+
+So why would you want to do this?
+
+- Testing. You can have instances of the application with different settings to test every case.
+- Multiple instances. Imagine you want to run different versions of the same application. Of course you could have multiple instances with different configs set up in your webserver, but if you use factories, you can have multiple instances of the same application running in the same application process which can be handy.
+
+So how would you then actually implement that?
+**Basic Factories**
+The idea is to set up the application in a function. Like this:
+
+```python
+def create_app(config_filename):
+    app = Flask(__name__)
+    app.config.from_pyfile(config_filename)
+
+    # ...
+
+    return app
+```
+
+> The downside is that you cannot use the application object in the blueprints at import time. You can however use it from within a request. How do you get access to the application with the config? Use `current_app`.
+
+**Factories & Extensions**
+It’s preferable to create your extensions and app factories so that the extension object does not initially get bound to the application.
+Using Flask-SQLAlchemy, as an example, you should not do something along those lines:
+
+```python
+def create_app(config_filename):
+    app = Flask(__name__)
+    app.config.from_pyfile(config_filename)
+
+    db = SQLAlchemy(app)
+```
+
+But, rather, in model.py (or equivalent):
+
+```python
+db = SQLAlchemy()
+```
+
+and in your application.py (or equivalent):
+
+```python
+def create_app(config_filename):
+app = Flask(**name**)
+app.config.from_pyfile(config_filename)
+
+    from yourapplication.model import db
+    db.init_app(app)
+
+```
+
+Using this design pattern, no application-specific state is stored on the extension object, so one extension object can be used for multiple apps.
+
+## Blueprints
+
+Flask uses a concept of blueprints for making application components and supporting common patterns within an application or across applications. Blueprints can greatly simplify how large applications work and provide a central means for Flask extensions to register operations on applications. A **Blueprint** object works similarly to a **Flask** application object, but it is not actually an application. Rather it is a blueprint of how to construct or extend an application.
+
+### Why blueprints?
+
+Blueprints in Flask are intended for these cases:
+
+- Factor an application into a set of blueprints. This is ideal for larger applications; a project could instantiate an application object, initialize several extensions, and register a collection of blueprints.
+- Register a blueprint on an application at a URL prefix and/or subdomain. Parameters in the URL prefix/subdomain become common view arguments (with defaults) across all view functions in the blueprint.
+- Register a blueprint multiple times on an application with different URL rules.
+- Provide template filters, static files, templates, and other utilities through blueprints. A blueprint does not have to implement applications or view functions.
+- Register a blueprint on an application for any of these cases when initializing a Flask extension.
+
+Blueprints provide separation at the Flask level, share application config, and can change an application object as necessary with being registered.
+
+> The downside is that you cannot unregister a blueprint once an application was created without having to destroy the whole application object.
+
+### The basic concept of blueprints
+
+The basic concept of blueprints is that they record operations to execute when registered on an application. Flask associates view functions with blueprints when dispatching requests and generating URLs from one endpoint to another.
+
+### Authentication Blueprint
+
+```
+
+```
