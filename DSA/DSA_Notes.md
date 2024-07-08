@@ -44,3 +44,5 @@ Insertion sort is a stable sort and an inplace algorithm that changes the origin
 The best way to describe this algorithm is by card shifting. When you have cards in your hand and you have some way to know which comes before the other one. You go through the cards from left to right. When you encounter a card that is smaller than the previous card, you start shifting the bigger cards to the right of this smaller card untill you find a card that is same or less than the smaller card on it's left side.
 
 ### Merge Sort
+
+## Graphs
