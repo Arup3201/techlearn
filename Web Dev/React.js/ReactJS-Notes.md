@@ -1,6 +1,8 @@
 # Notes on Reast.JS - From Basics
 
-## React Project Setup
+## React Essentials - Components, JSX, Props, State and More...
+
+### React Project Setup
 
 To get started with React and writing code for that, we need a react project. One of the quickest ways to get started with react code, is to open a new chrome tab and type `react.new` it will open a code sandbox tab where everything that you might to build a react project is already present, and I just have to start writing react code only.
 
@@ -30,7 +32,7 @@ It will run the server at port `5173`.
 
 > The reason is, react uses HTML code with Javascript which is also known as jsx. Jsx is not supported in normal .js file if we just use the conventional set up of writing an index.html and app.js and linking them together. Unfortunately, this will give us errors in the web browser. The reason is as mentioned for jsx not being supported in web browser. And that is why we need a special set up that can convert this jsx to simple js that the web browser understands. React projects use a build process to include the script tags in the html file automatically for you, so you will never have to add those files explicitly. It simply means the code that you write is the code that is executed in the browser. Your code is transformed behind the scenes before it is handed over to the browser. One reason for the build process is because the raw, unprocessed code won’t run on the browser and another reason is the code is not optimized for production (i.e. minified). Fortunately, react projects come with this build process without any custom tweaking or set up.
 
-## Import and Exports
+### Import and Exports
 
 In vanilla Javascript, we can always make variables, functions, classes available to other .js files by exporting them. Then, we can use import statements to import the specific variables, functions or classes from other files.
 
@@ -120,7 +122,7 @@ console.log(util.apiKey, util.abc, util.default);
 
 The default export is saved in the default key. Other exports has their key name same as their variable name.
 
-## Components
+### Components
 
 Components are the reusable building blocks that make up a website. React apps are built by combining components.
 
@@ -176,7 +178,7 @@ Though as a component, it must follow 2 rules -
 1. `Names start with uppercase character`: It must start with an uppercase character. Multi-word should be written in pascal case (e.g. "MyHeader"). It is recommended to use names that best describe UI.
 2. `Returns a "Renderable" value`: Components must return a value that can be rendered on the screen. Usually it is JSX code.
 
-## First Custom Component
+### First Custom Component
 
 As components are just JS functions that return JSX code, you can define a function that follows component naming rule and return JSX code from it.
 
@@ -237,7 +239,7 @@ When using the 2nd option, don't forget to use `/` before ending the tag.
 > And therefore, you'll also find React projects that don't use .jsx but instead just .js as a file extension. And in those .js files, you'll also find JSX code. Because it simply depends on the underlying build process which extension is expected when using this JSX syntax in a file.
 > Since it doesn't work in the browser either way, there is no hard rule regarding this. Instead, you'll find projects that require .jsx (like the project setup we use in this course) and you'll find projects that also support .js (with JSX code inside).
 
-## How components are handled by React?
+### How components are handled by React?
 
 As you already know components are written in JSX and they are unsupported in browser. Then how react handles them?
 
@@ -251,7 +253,7 @@ If `App` component has sub components inside it then React will go through each 
 
 > That is also the reason why the component names should start with upper-case letters as they will collide with the built-in HTML DOM elements that start with lower-case letters.
 
-## Using and outputing random dynamic values
+### Using and outputing random dynamic values
 
 To output contents dynamically, you can use `{value}` inside of the JSX code.
 
@@ -302,7 +304,7 @@ function Header() {
 
 Here, you can name the image variable any name you want. With this the image will be loaded dynamically with a path that is automatically created by react and points to the correct file even after deployment.
 
-## Component "props" concept
+### Component "props" concept
 
 `props` are used to send data to components and reuse the same component to output different values.
 
@@ -392,7 +394,7 @@ function App() {
 3. Don't forget to change the imports path. Now, the paths will be `../` instead of `./`, if you are using any images, styles.
 4. You can also split the style for each component and save the jsx and css together inside a folder that has the same name an the component. Though it comes with preferences and you might not choose to save them inside a folder.
 
-## Composition props
+### Composition props
 
 Sometimes it makes more sense to use react components as HTML tags and pass information between the opening and closing tags like -
 
@@ -438,7 +440,7 @@ function App() {
 }
 ```
 
-## Handling events in React
+### Handling events in React
 
 In vanilla JS, you have to write imperative code where you use `addEventListener` to listen to events and call a function whenever that function is triggered.
 
@@ -470,7 +472,7 @@ export default function TabButton({ children }) {
 
 You can write _on_ and then press `CTRL`+`SPACE` to see all available attributes that will be triggered for different events.
 
-## Passing functions as values to props
+### Passing functions as values to props
 
 Sometimes you would want to change content in your App depending on some events. But, if you have used components that how would you handle that event and show dynamic content based on the event?
 
@@ -516,7 +518,7 @@ export default function TabButton({ children, onSelect }) {
 }
 ```
 
-## Passing custom arguments to event functions
+### Passing custom arguments to event functions
 
 Sometimes you would want to pass values to the event functions so that they can dynamically show contents based on which component was selected. To do that instead of passing the handler directly to `onClick`, you have to create an arrow function and call the handler when that arrow function is called.
 
@@ -537,7 +539,7 @@ function handleSelect(selectedButton) {
 }
 ```
 
-## State (**useState**)
+### State (**useState**)
 
 When you want to dyanmically change the contents of the react components you need to "tell" react app to reload so that it will execute the components and render them on UI again.
 
@@ -554,7 +556,7 @@ React hooks start with `use` keyword. Here, the react hook that you will be usin
 1. Only call hooks inside of component functions. It must not be called outside react components.
 2. Only call hooks on the top level. They must not be called inside nested code statements.
 
-## Showing conditional components
+### Showing conditional components
 
 ```js
 let tabContent = <p>Please click any topic.</p>;
@@ -605,7 +607,7 @@ OR
 }
 ```
 
-## CSS dynamic styling
+### CSS dynamic styling
 
 _TabButton.jsx_
 
@@ -652,7 +654,7 @@ _App.jsx_
 </menu>
 ```
 
-## Output lists dynamically
+### Output lists dynamically
 
 JSX code also outputs list with JSX code, so we can do something like this to dynamically load lists -
 
@@ -665,3 +667,635 @@ JSX code also outputs list with JSX code, so we can do something like this to dy
 ```
 
 This is much more efficient, scalable.
+
+## React Essentials - Deep Dive
+
+### You don't have to use JSX code!
+
+Instead of using JSX code, you can also create components by `React.createElement` method.
+
+Instead of creating components like this,
+
+```js
+<div id="content">
+  <p>Hello World!</p>
+</div>
+```
+
+You can use `createElement` method,
+
+```js
+React.createElement(
+  "div",
+  { id: "content" },
+  React.createElement("p", null, "Hello World!")
+);
+```
+
+But, as you can see the code will become more tedious! Instead we can just rely on react build process to convert our JSX code to browser compatible code.
+
+```js
+React.createRoot(document.getElementById("root")).render(
+  React.createElement(App)
+);
+```
+
+### Fragments
+
+You might have noticed that in the react code you wrap the components inside a div and then return it, if it containes more than one component.
+
+It is normally how javascript works, in JS you can't return 2 values (not talking about any array type structure).
+
+So when you write the code like this-
+
+```js
+return (
+  <Header />
+  <CoreConcepts />
+);
+```
+
+It will give you an error.
+
+But, you also don't want to bother with extra elements in your dom which are unnecessary.
+
+To achieve the thing you want, you can user `Fragment`.
+
+```js
+import { Fragment } from "react";
+
+return (
+  <Fragment>
+    <Header />
+    <CoreConcepts />
+  </Fragment>
+);
+```
+
+Ans modern react also supports `<> </>` as a wrapper which works same as `Fragment`.
+
+```js
+return (
+  <>
+    <Header />
+    <CoreConcepts />
+  </>
+);
+```
+
+In both methods, you will notice that no extra element is created in the DOM.
+
+### Spliting components
+
+In large code bases you can't make one component responsible for taking care of multiple things.
+
+It will lead to problems. If a component handles state as well as other dynamic components, due to the state change of one component, your entire component will run again along with all other sub-components inside it - Which might result in different UI for other components if they handle dynamic things.
+
+### Forwarding props / Proxy props
+
+If you try to set props (like `id`, `className`) on components, they are not automatically attached to the components built-in element `id` or `className`.
+
+```js
+export default function Section({ title, children }) {
+  return (
+    <section>
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
+```
+
+```js
+return (
+  <Section id="examples" title="Examples">
+    <menu>
+      <TabButton
+        isSelected={selectedTopic === "components"}
+        onSelect={() => handleSelect("components")}
+      >
+        Components
+      </TabButton>
+      <TabButton
+        isSelected={selectedTopic === "jsx"}
+        onSelect={() => handleSelect("jsx")}
+      >
+        JSX
+      </TabButton>
+      <TabButton
+        isSelected={selectedTopic === "props"}
+        onSelect={() => handleSelect("props")}
+      >
+        Props
+      </TabButton>
+      <TabButton
+        isSelected={selectedTopic === "state"}
+        onSelect={() => handleSelect("state")}
+      >
+        State
+      </TabButton>
+    </menu>
+    {tabContent}
+  </Section>
+);
+```
+
+![Broken due to props not forwared](images/1.png)
+
+To forward the props to sub-components, you can use `...props` and just put it inside the component where you want to use those `props` passed from parent component.
+
+```js
+export default function Section({ title, children, ...props }) {
+  return (
+    <section {...props}>
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
+```
+
+### Using multiple JSX slots
+
+Sometimes you wanna build components that are reusable in every scenarios but unlike normal components where you can send `children` as a value to the component to use any other JSX code inside the component declaration, you might need to send another JSX code that will be used somewhere else in the component and can't be used along with the passed `children`.
+
+You can do something like the following-
+
+```js
+export default function Tabs({ children, buttons }) {
+  return (
+    <>
+      <menu>{buttons}</menu>
+      {children}
+    </>
+  );
+}
+```
+
+You can pass the extra JSX and slot for that-
+
+```js
+return (
+  <Section id="examples" title="Examples">
+    <Tab
+      buttons={
+        <>
+          <TabButton
+            isSelected={selectedTopic === "components"}
+            onClick={() => handleSelect("components")}
+          >
+            Components
+          </TabButton>
+          <TabButton
+            isSelected={selectedTopic === "jsx"}
+            onClick={() => handleSelect("jsx")}
+          >
+            JSX
+          </TabButton>
+          <TabButton
+            isSelected={selectedTopic === "props"}
+            onClick={() => handleSelect("props")}
+          >
+            Props
+          </TabButton>
+          <TabButton
+            isSelected={selectedTopic === "state"}
+            onClick={() => handleSelect("state")}
+          >
+            State
+          </TabButton>
+        </>
+      }
+    >
+      {tabContent}
+    </Tab>
+  </Section>
+);
+```
+
+### Using components dynamically inside another component
+
+Sometimes you might want to wrap some element inside a `div`, `ul`, `menu`, or any custom component. But how do you do that?
+
+To achieve that, you use the pattern where you pass the component as a `prop` and use this `prop` as a component inside the component.
+
+```js
+ <Tabs
+        ButtonsContainer="menu"
+        // ...
+>
+ABCD
+</Tab>
+```
+
+```js
+export default function Tabs({ children, buttons, ButtonsContainer }) {
+  return (
+    <>
+      <ButtonsContainer>{buttons}</ButtonsContainer>
+      {children}
+    </>
+  );
+}
+```
+
+OR
+
+```js
+ <Tabs
+        buttonsContainer="menu"
+        // ...
+>
+ABCD
+</Tab>
+```
+
+```js
+export default function Tabs({ children, buttons, buttonsContainer }) {
+  const ButtonsContainer = buttonsContainer;
+  return (
+    <>
+      <ButtonsContainer>{buttons}</ButtonsContainer>
+      {children}
+    </>
+  );
+}
+```
+
+Make sure that you pass built-in elements as string and custom components as dynamic value `ButtonsContainer={Section}`.
+
+### Folders: src, public
+
+**The `public/` Folder**
+
+You can store images in the `public/` folder and then directly reference them from inside your `index.html` or `index.css` files.
+
+The reason for that is that images (or, in general: files) stored in `public/` are made publicly available by the underlying project development server & build process. Just like `index.html`, those files can directly be visited from inside the browser and can therefore also be requested by other files.
+
+If you try loading `localhost:5173/some-image.jpg`, you'll be able to see that image (if it exists in the `public/` folder, of course).
+
+**The `src/assets/` Folder**
+
+You can also store images in the `src/assets/` folder (or, actually, anywhere in the src folder).
+
+So what's the difference compared to `public/`?
+
+Any files (of any format) stored in `src` (or subfolders like `src/assets/`) are not made available to the public. They can't be accessed by website visitors. If you try loading `localhost:5173/src/assets/some-image.jpg`, you'll get an error.
+
+Instead, files stored in `src/` (and subfolders) can be used in your code files. Images imported into code files are then picked up by the underlying build process, potentially optimized, and kind of "injected" into the `public/` folder right before serving the website. Links to those images are automatically generated and used in the places where you referenced the imported images.
+
+**Which Folder Should You Use?**
+You should use the `public/` folder for any images that should not be handled by the build process and that should be generally available. Good candidates are images used directly in the `index.html` file or favicons.
+
+On the other hand, images that are used inside of components should typically be stored in the `src/` folder (e.g., in `src/assets/`).
+
+### React components work in isolation
+
+Look at the code below -
+
+```js
+import { useState } from "react";
+
+export default function Player({ name, symbol }) {
+  const [editing, setEditing] = useState(false);
+  const [newName, setNewName] = useState(name);
+
+  function handleClick() {
+    if (!editing) {
+      // Start editing
+      setEditing(true);
+    } else {
+      // Save the changes
+      setEditing(false);
+    }
+  }
+
+  return (
+    <li>
+      <span className="player">
+        {!editing && <span className="player-name">{newName}</span>}
+        {editing && (
+          <input
+            htmlFor="playername"
+            type="text"
+            required
+            onChange={(e) => setNewName(e.target.value)}
+          ></input>
+        )}
+        <span className="player-symbol">{symbol}</span>
+      </span>
+      <button onClick={handleClick}>{editing ? "Save" : "Edit"}</button>
+    </li>
+  );
+}
+```
+
+I am using `Player` component 2 times in the `App.jsx` file -
+
+```js
+import Player from "./components/Player";
+
+function App() {
+  return (
+    <main>
+      <div id="game-container">
+        <ol id="players">
+          <Player name="Player 1" symbol="X" />
+          <Player name="Player 2" symbol="O" />
+        </ol>
+        GAME BOARD
+      </div>
+      LOG
+    </main>
+  );
+}
+
+export default App;
+```
+
+In the UI, even though I click on one `Player` component and edit the name of the player, it won't interfere with the other one.
+
+Because react makes sure that the elements in the DOM, even though are same component, are instances of the same component but work in isolation.
+Component instances in the DOM won't interfere with other instance in the DOM that are created from the same component.
+
+### Best practice: Update the state based on it's old state
+
+It is important to remember that react always schedules the state updates in near future and not immediately.
+
+```js
+const [isEditing, setIsEditing] = useState(false);
+
+function handleClick() {
+  setIsEditing(!isEditing);
+}
+```
+
+When `handleClick` function is triggered, react schedules a state update in future where the `isEditing` has a `false` value and it sets the new value as `true` (negation operator).
+
+If I do something like this -
+
+```js
+const [isEditing, setIsEditing] = useState(false);
+
+function handleClick() {
+  setIsEditing(!isEditing); // 1
+  setIsEditing(!isEditing); // 2
+}
+```
+
+In the `1`, react schedules a state update where `isEditing` is `false`, `2` also does the same thing!
+Unlike how you might expect that `2` will have the `isEditing` as `true` because of `1`.
+
+That is why the best practice is to pass a function to `setIsEditing` function instead of passing a value.
+
+Because the function gets access to `isEditing` value in the current time, it will use the new `isEditing` value after `1`.
+
+```js
+const [isEditing, setIsEditing] = useState(false);
+
+function handleClick() {
+  setIsEditing((editing) => !editing);
+}
+```
+
+### Two-way handling
+
+Sometimes we would want to feed the value of an input field and use that value to change the value of the input field.
+
+This is called two-way handling.
+
+To do that-
+
+```js
+export default function Player({ initialName, symbol }) {
+  const [playerName, setPlayerName] = useState(initialName);
+  const [isEditing, setIsEditing] = useState(false);
+
+  function handleClick() {
+    setIsEditing((editing) => !editing);
+  }
+
+  let editablePlayerName = <span className="player-name">{playerName}</span>;
+
+  function handleEdit(event) {
+    setPlayerName(event.target.value);
+  }
+
+  if (isEditing) {
+    editablePlayerName = (
+      <input
+        htmlFor="playername"
+        type="text"
+        required
+        value={playerName}
+        onChange={handleEdit}
+      ></input>
+    );
+  }
+
+  return (
+    <li>
+      <span className="player">
+        {editablePlayerName}
+        <span className="player-symbol">{symbol}</span>
+      </span>
+      <button onClick={handleClick}>{isEditing ? "Save" : "Edit"}</button>
+    </li>
+  );
+}
+```
+
+I have to use `onChange` prop of the `input` element. Keep track of the state of the input value, when the change happens, I set the new value of the state and that value will be the new value of the input field instead of the `initialName`.
+
+### Update object state immutabely
+
+Take an example here-
+
+```js
+import { useState } from "react";
+const initialGameBoard = [
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+];
+
+export default function GameBoard() {
+  const [gameBoard, setGameBoard] = useState(initialGameBoard);
+
+  function handleSquareSelection(rowIndex, colIndex) {
+    setGameBoard((prevGameBoard) => {
+      // Change the prevGameBoard by replacing null with X/O
+    });
+  }
+
+  return (
+    <ol id="game-board">
+      {gameBoard.map((row, rowIndex) => (
+        <li key={rowIndex}>
+          <ol>
+            {row.map((playerSymbol, colIndex) => (
+              <li key={colIndex}>
+                <button
+                  onClick={() => handleSquareSelection(rowIndex, colIndex)}
+                >
+                  {playerSymbol}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </li>
+      ))}
+    </ol>
+  );
+}
+```
+
+If I change the `prevGameBoard`, it will directly change the object placed at memory. If this same object state is used in different places it could lead to complex bugs, so it is recommended to always use a copy of the passed reference values by destructuring.
+
+```js
+setGameBoard((prevGameBoard) => {
+  const newGameBoard = [...prevGameBoard.map((rows) => [...rows])];
+  newGameBoard[rowIndex][colIndex] = "X";
+  return newGameBoard;
+});
+```
+
+[Reference vs Primitives](https://academind.com/tutorials/reference-vs-primitive-values)
+
+### Lift states up
+
+Sometimes you might want to use a state and depending on the state you want to change the UI. But what if 2 components need the same state at the same time to change it. How do you do that?
+
+When you face such situations, you have to look for the closest common ancestor of both components and use the state there. Then, you can pass this state as `prop` to the child components.
+
+### Prefer computed values than unnessecary state management
+
+Some of the points need to be remembered-
+
+1. Try to avoid states that more or less store the same data with the only difference the other one stores more or less. In this case, try to optimize your code such that you can use just 1 state throughout different child components.
+2. Do not try to use 2 states at the same time when setting one state only. Try to compute a similar value that is equal to that state value.
+
+```js
+import { useState } from "react";
+import Player from "./components/Player";
+import GameBoard from "./components/GameBoard";
+
+function App() {
+  const [gameTurns, setGameTurns] = useState([]);
+  const [activePlayer, setActivePlayer] = useState("X");
+
+  function handleSelectSquare() {
+    setActivePlayer((prevActivePlayer) =>
+      prevActivePlayer == "X" ? "O" : "X"
+    );
+  }
+
+  // Code...
+}
+
+export default App;
+```
+
+```js
+import { useState } from "react";
+const initialGameBoard = [
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+];
+
+export default function GameBoard({ playerSymbol, onSelectSquare }) {
+  // WE DO NOT NEED GAMEBOARD AS GAMETURNS ALREADY STORES SIMILAR DATA
+  //   const [gameBoard, setGameBoard] = useState(initialGameBoard);
+
+  //   function handleSquareSelection(rowIndex, colIndex) {
+  //     setGameBoard((prevGameBoard) => {
+  //       const newGameBoard = [...prevGameBoard.map((rows) => [...rows])];
+  //       newGameBoard[rowIndex][colIndex] = playerSymbol;
+  //       return newGameBoard;
+  //     });
+  //     onSelectSquare();
+  //   }
+
+  return (
+    <ol id="game-board">
+      {gameBoard.map((row, rowIndex) => (
+        <li key={rowIndex}>
+          <ol>
+            {row.map((playerSymbol, colIndex) => (
+              <li key={colIndex}>
+                <button
+                  onClick={() => handleSquareSelection(rowIndex, colIndex)}
+                >
+                  {playerSymbol}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </li>
+      ))}
+    </ol>
+  );
+}
+```
+
+Instead of doing this -
+
+```js
+import { useState } from "react";
+import Player from "./components/Player";
+import GameBoard from "./components/GameBoard";
+
+function App() {
+  const [gameTurns, setGameTurns] = useState([]);
+  const [activePlayer, setActivePlayer] = useState("X");
+
+  function handleSelectSquare(rowIndex, colIndex) {
+    setActivePlayer((prevActivePlayer) =>
+      prevActivePlayer == "X" ? "O" : "X"
+    );
+
+    setGameTurns((prevTurns) => {
+      let currentPlayer = "X";
+
+      if (prevTurns.length > 0 && prevTurns[0].player == "X") {
+        currentPlayer = "O";
+      }
+
+      const updatedTurns = [
+        { square: { row: rowIndex, col: colIndex }, player: currentPlayer },
+        ...prevTurns,
+      ];
+
+      return updatedTurns;
+    });
+  }
+
+  return (
+    <main>
+      <div id="game-container">
+        <ol id="players" className="highlight-player">
+          <Player
+            initialName="Player 1"
+            symbol="X"
+            isActive={activePlayer == "X"}
+          />
+          <Player
+            initialName="Player 2"
+            symbol="O"
+            isActive={activePlayer == "O"}
+          />
+        </ol>
+
+        <GameBoard
+          onSelectSquare={handleSelectSquare}
+          playerSymbol={gameTurns[0].player}
+        />
+      </div>
+      LOG
+    </main>
+  );
+}
+
+export default App;
+```
