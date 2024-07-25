@@ -1299,3 +1299,73 @@ function App() {
 
 export default App;
 ```
+
+## Styling React Components
+
+### Disadvantages of CSS
+
+1. You need to know CSS.
+2. CSS rules are not scoped to components. Different components may use same CSS class name which had different purpose in both components and they clash with each other.
+
+When you make changes to the styles part of one component, if that element is used in other components then they will be styled in the same way, if both are used together. Because when the page loads after building process, the css files needed for components are also loaded, so all styles become common to all elements in the page irrespective of which component it was isolated with.
+
+## Inline style
+
+One solution to the problem could be inline styling of the components.
+
+To use inline styles, you can use the `style` property of the components and add the styles as an object.
+
+```js
+<p
+  style={{
+    color: "red",
+    textAlign: "left",
+  }}
+>
+  A community of artists and art-lovers.
+</p>
+```
+
+If you have a style property like `text-align`, make sure to use string or camel case to write the property name.
+Values should be in the form of a string.
+
+Advantages of using inline style-
+
+1. Fast and simple styling.
+2. Dynamic(conditionally) styling is simple and easy.
+3. Styles only effect the elements on which you apply them.
+
+Disadvantages -
+
+1. You need to style every individual element.
+2. No seperation b/w JSX and CSS code.
+
+## Dynamic Styling with CSS Files and Classes
+
+When adding dynamic class using `className` property, make sure to add a ternary exp that sets the `className` to `undefined` is the condition does not met, otherwise browser will throw a warning saying that "false was not a className".
+
+Do this
+
+```js
+<input
+  type="email"
+  className={emailNotValid ? "invalid" : undefined}
+  onChange={(event) => handleInputChange("email", event.target.value)}
+/>
+```
+
+Instead of doing this
+
+```js
+<input
+  type="email"
+  className={emailNotValid && "invalid"}
+  onChange={(event) => handleInputChange("email", event.target.value)}
+/>
+```
+
+If you want to add a `className` to a component along with a mandetory `className` conditionally, then you can use JS special string literals that use `${}` sign.
+
+```js
+<label className={`label ${emailNotValid ? "invalid" : ""}`}>Email</label>
+```

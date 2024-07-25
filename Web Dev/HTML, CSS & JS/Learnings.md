@@ -1,6 +1,6 @@
 # Learnings - Web Development
 
-# Filter - drop shadow
+## Filter - drop shadow
 
 On images, `box-shaow` does not work. So, if you want to make a shadow effect on images, you need to use `filter` property and set it to `drop-shadow(0 0 8px rgba(0,0,0,0.4))`
 
@@ -10,7 +10,7 @@ img-element {
 }
 ```
 
-# Make an image header for a card
+## Make an image header for a card
 
 I am making a card with an image as a header. To do that-
 
@@ -38,3 +38,30 @@ The replaced content is not resized.
 
 `scale-down`
 The content is sized as if none or contain were specified, whichever would result in a smaller concrete object size.
+
+## JS Sort Function
+
+The `sort()` method of `Array` instances sorts the elements of an array _in place_ and returns the reference to the same array, now sorted. The default sort order is ascending, built upon converting the elements into strings, then comparing their sequences of UTF-16 code units values.
+
+**Syntax**
+
+```js
+sort();
+sort(compareFn);
+```
+
+Parameters:
+
+- compareFn (Optional):
+  A function that determines the order of the elements. The function is called with the following arguments:
+
+  - a: The first element for comparison. Will never be undefined.
+  - b: The second element for comparison. Will never be undefined.
+
+  It should return a number where:
+
+  - A negative value indicates that `a` should come before `b`.
+  - A positive value indicates that `a` should come after `b`.
+  - Zero or `NaN` indicates that `a` and `b` are considered equal.
+    To memorize this, remember that `(a, b) => a - b` sorts numbers in ascending order.
+    If omitted, the array elements are converted to strings, then sorted according to each character's Unicode code point value.

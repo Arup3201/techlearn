@@ -103,6 +103,12 @@ Then, doing the following will give you the error `Relative import without paren
 python test/test_user_services.py
 ```
 
+If you want to do so, you have run the following command instead-
+
+```
+python -m user.test.test_something.py
+```
+
 ## Backend Development
 
 ### Issue 1: Postman `POST` error
@@ -194,3 +200,36 @@ export default defineConfig({
   //...
 });
 ```
+
+## Streamlit Deployment
+
+### Issue 1: Dependency issues
+
+Remove the following dependencies before deploying on streamlit:
+
+```
+twisted-iocpsupport==1.0.4
+tensorflow-intel==2.15.0
+pywin32==306
+pywinpty==2.0.12
+```
+
+Replace
+
+```
+opencv-python
+```
+
+with
+
+```
+opencv-python-headless
+```
+
+If you are using nltk then make sure to download the 'popular' or any similar vocabulary by mentioning it inside deploy or any .py file used by deploy.
+
+## VS Code
+
+### Testing is not detected
+
+Sometimes you will notice that your test cases are not being detected. In those cases, you first have to run the test manually in the powershell and after they run successfully, then only VS Code will detect those test files.
