@@ -85,4 +85,12 @@ import numpy as np
 y = y.astype(np.uint8)
 ```
 
-MNSIT dataset are already shuffled so I can just slice the train and test set from the dataset. Shuffled data is important because you don't want one of your cross-validation folds to miss some digits. Some learning algorithms are sensitive to the order of the instances and perform poorly if same instances are repeated in a row. Although there are exceptions like when working with time-series data.
+MNIST dataset are already shuffled so I can just slice the train and test set from the dataset. Shuffled data is important because you don't want one of your cross-validation folds to miss some digits. Some learning algorithms are sensitive to the order of the instances and perform poorly if same instances are repeated in a row. Although there are exceptions like when working with time-series data.
+
+```py
+x_train, y_train, x_test, y_test = X[:60000], y[:60000], X[60000:], y[60000:]
+```
+
+We can make this problem a binary classification problem by making the classes only 5 and not-5. This "5-detector" is a binary classifier as it classifies the result between 2 classes.
+
+_SGDClassifier_: For instances when we need a model that can handle large datasets efficiently, we can use Stochastic Gradient Descent(SGD) classifier as it deals with each instance independently, one at a time (which also makes it well suited for online training).

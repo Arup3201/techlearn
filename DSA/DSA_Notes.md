@@ -28,7 +28,7 @@ This note will covers the following topics-
 22. Segment and Binary Indexed Tree
 23. Disjoint Set
 
-## Sorting
+## 6. Sorting
 
 In this section, I will discuss about the sorting techniques. Each technique is used in certain situations and gives good result when used. Some of them has higher time complexity some of them has lower.
 
@@ -45,7 +45,153 @@ The best way to describe this algorithm is by card shifting. When you have cards
 
 ### Merge Sort
 
-## Graphs
+## 9. Strings
+
+### Suffix Array
+
+#### What is a suffix array.
+
+Consider a string `s`.
+
+![String s](./Strings/images/string_s.png)
+
+Let's write all its suffixes in lexicographical order. We get this an array of strings.
+
+![Suffix array of s](./Strings/images/suffix_array.png)
+
+This sequence of suffixes is called the `suffix array`. How will we store it? If you store it as strings, then it will occupy $O(n^2)$ memory. To keep it smaller, let's notice that the suffix can be identified by the index of the first character. In our example, suffixes will have these numbers.
+
+![Suffix array as integer numbers](./Strings/images/suffix_array_as_integers.png)
+
+We will store the suffix array as an array `p` of suffix numbers in sorted order. Then it will occupy $O(n)$ memory. Now our first task is this: given the string `s`, build an array `p`.
+
+To make the algorithm simpler, we will make some preparations. First, add the symbol `$` to the end of the string. This will be a special character that is smaller than all characters in the string. As a result, the symbol `$` will be added to each suffix. Let's notice that the order of the strings has not changed, because `$` is smaller than all characters.
+
+![$ added to the string](./Strings/images/suffix_array_$_added.png)
+
+Now let's make the length of all the strings the same. To do this, let's write after `$` all the other characters in the string in a cycle. Again, note that order of strings has not changed, because the characters after `$` do not affect the string ordering.
+
+![Characters added in cycle to make same length](./Strings/images/suffix_array_$_same_length.png)
+
+Now the last preparation. Let's make the length of the strings the power of two, for this we add more characters in a cycle until the length of the string becomes a power of two. In our example, the string length is 7, so we need to add one character.
+
+![Characters added to make the length power of 2](./Strings/images/suffix_array_$_powerof2.png)
+
+#### Algorithm Idea
+
+We will build this table by columns, each time increasing the number of columns twice. That is, first we construct the first column, then the first two, then four, and so on. In other words, we divide the algorithm into $logn$ iterations, and on the iteration `k` we construct an array consisting of the strings $s[i..i+2^k−1]$, sorted in lexicographical order (we assume that the string is cyclic, that is, the character with index i corresponds to the character with index `i mod n` of the original string).
+
+Let's start from the base, if `k=0`, then we need to sort the strings of one character $s[i..i]$. This can be done by any sort in $O(nlogn)$.
+
+Now make the transition from `k` to `k+1`. We need to sort the strings of length $2^{k+1}$, using the order of the strings of length $2^k$. To do this, let's learn how to quickly compare strings of length $2^{k+1}$. Suppose we have two strings **A** and **B**, both have lengths $2^{k+1}$. Let's divide both strings into two halves, then each half has a length $2^k$.
+
+Let's compare their left halves. If they are not equal, for example, if `A.left` is less than `B.left`. This means that they have some common prefix, and after it comes a character that is not equal, and this character in the string **A** is less than in the string **B**. In this case, the entire string **A** is less than the string **B**, and the right halves should not be compared.
+
+![Suffix array left left side less](./Strings/images/suffix_array_left_less.png)
+
+If the left halves are equal, then let's compare the right halves. Suppose, for example, `A.right` is less than `B.right`. This again means that there is a common prefix, and then a character that is less in the string **A** than in the string **B**. Again we get that the string **A** is less than the string **B**.
+
+![Suffix array right side less](./Strings/images/suffix_array_right_less.png)
+
+Thus, we get that `A<B⟺A.left<B.left OR (A.left=B.left AND A.right<B.right)`. If we learn to quickly compare strings of length $2^k$, then we will make a comparator that quickly compares strings of length $2^{k+1}$.
+
+Now we need to learn how to compare strings of length $2^k$ quickly. We will do it as follows. Let's go through the strings of length $2^k$ in sorted order, and assign them integer numbers so that a smaller string corresponds to a smaller number. We call these numbers **equivalence classes**. Now, instead of comparing strings, we will compare their equivalence classes. Thus, we can compare strings of length $2^{k+1}$ in $O(1)$.
+
+For example, for the string that we analyzed above, for `k=1` we get the following order of strings of length 2. Let's go through these strings and assign them equivalence classes (array **c**).
+
+![Suffix array equivalence class](./Strings/images/suffix_array_equivalence_class.png)
+
+Now, if, for example, we want to compare the strings abab and abba. Divide them into two halves and write the equivalence classes for each of the halves, get the pair `(2,2)` for the string `abab`, and the pair `(2,3)` for the string `abba`. Now compare these pairs, we get that `(2,2)<(2,3)`, which means that `abab < abba`.
+
+#### Algorithm
+
+Thus, we get the following algorithm. First, we form strings of one character and sort them by any sort algorithm in $O(nlogn)$. Next, logn times we make the transition from `k`
+to `k+1`. Each transition is done like this: take sorted strings of length $2^k$, assign equivalence classes to them, then assign to each string of length $2^{k+1}$ a pair of numbers: equivalence classes of its halves, sort these pairs and get a sorted order for a string of length $2^{k+1}$.
+
+The time complexity this algorithm will be $O(nlog2^n)$, because on at each of the $logn$
+iterations we do the sorting in $O(nlogn)$ time.
+
+```c++
+int main() {
+  string s;
+  cin >> s;
+  s += '$';
+  int n;
+  n = s.size();
+
+  // p -> suffix array int, c -> equivalence class
+  vector<int> p(n), c(n);
+
+  // 1. k = 0:
+  // sort characters with length 1
+  // create array p that contains initial suffix array integers
+
+  // single character
+  vector<pair<char, int>> a(n); // (s[i], i)
+  for (int i = 0; i < n; i++)
+      a[i] = {s[i], i};
+
+  sort(a.begin(), a.end());
+
+  for (int i = 0; i < n; i++)
+      p[i] = a[i].second;
+
+  // calculate the equaivalenve class for each s[i..i+2^k-1]
+  c[p[0]] = 0;
+  for (int i = 1; i < n; i++)
+  {
+      if (a[i].first == a[i - 1].first)
+      {
+          c[p[i]] = c[p[i - 1]];
+      }
+      else
+      {
+          c[p[i]] = c[p[i - 1]] + 1;
+      }
+  }
+
+  // strings with 2^k length
+  int k = 0;
+  while ((1 << k) < n)
+  {
+      // k -> k+1
+      vector<pair<pair<int, int>, int>> x(n);
+      for (int i = 0; i < n; i++)
+      {
+          x[i] = {{c[i], c[(i + (1 << k)) % n]}, i};
+      }
+
+      sort(x.begin(), x.end());
+
+      for (int i = 0; i < n; i++)
+          p[i] = x[i].second;
+
+      c[p[0]] = 0;
+      for (int i = 1; i < n; i++)
+      {
+          if (x[i].first == x[i - 1].first)
+          {
+              c[p[i]] = c[p[i - 1]];
+          }
+          else
+          {
+              c[p[i]] = c[p[i - 1]] + 1;
+          }
+      }
+
+      k++;
+  }
+
+  for (int i = 0; i < n; i++)
+  {
+      cout << p[i] << " " << s.substr(p[i], n) << "\n";
+  }
+
+  return 0;
+}
+```
+
+## 17. Graphs
 
 ### Introduction to Graph
 
