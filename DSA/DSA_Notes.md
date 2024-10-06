@@ -308,3 +308,451 @@ Operations:
 3. Find degree of u: $\theta(1)$.
 4. Add an edge: $\theta(1)$.
 5. Remove an edge: $O(V)$.
+
+### Adjacency List implementation in C++
+
+To create an adjacency list like the following in C++,
+![Adjacency list implementation C++](./Graph/images/adjacency_list_implementation.png)
+
+You first have to create an array of vectors with size `V` which is the no of vertices in the graph.
+
+```c++
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+int main()
+{
+    int v = 4;
+    vector<int> adj_list[v];
+    addEdge(adj_list, 0, 1);
+    addEdge(adj_list, 0, 2);
+    addEdge(adj_list, 1, 2);
+    addEdge(adj_list, 2, 3);
+    return 0;
+}
+```
+
+As we are implementing a undirected graph, we need to add `v` to `u` as well as `u` to `v` in the `add_edge` function.
+
+Now print the graph using the following code,
+
+```c++
+void printGraph(vector<int> adj[], int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        cout << i << "->";
+        for (auto x : adj[i])
+        {
+            cout << x << " ";
+        }
+        cout << "\n";
+    }
+}
+```
+
+Output:
+
+```
+0->1 2
+1->0 2
+2->0 1 3
+3->2
+```
+
+### Breadth First Search
+
+#### Introduction
+
+V1: Given an undirected graph and a source vertex `S`, traverse the whole graph using BFS. In BFS, we have to make sure that every vertex is visited exactly once.
+
+BFS is a sorted search in the sense that it prints all the immediate adjacent of the current vertex and then moves to the next immediate adjacents.
+
+Example of social network can give clarity about it. You will print yourself(source) first, then you print your friends and then you print your friends' friends and so on.
+
+Here the order in which you are printing your friends does not matter.
+
+#### Examples
+
+Following are some examples of BFS,
+
+![BFS of an undirected graph](./Graph/images/BFS.png)
+
+![BFS of another undirected graph](./Graph/images/BFS2.png)
+
+#### Algorithm
+
+The algorithm to do a BFS manages one queue `q` and an array `visited`. For every vertex we add it to the queue and mark this vertex as visited, then look for all adjacent vertices which are not visited and add them to the queue. The algorithm is described in detail here -
+
+1. Initialize an array `visited` of length `V` with `false` indicating no vertex is visited yet. Initialize an empty queue `q` and push the source vertex `s` to it.
+2. Get the front of the queue and print the vertex, remove the front from the queue.
+3. Traverse all adjacent vertex to the recently printed vertex. Add any vertex to the queue which is not yet visited.
+4. Repeat 2-3 till queue is not empty.
+
+We will understand the algorithm using the following example:
+
+![BFS algorithm example](./Graph/images/bfs_example.png)
+
+1. `visited` array is initialized with all `false` values and queue `q` in empty.
+
+   ![BFS example step 1](./Graph/images/bfs_example_s1.png)
+
+2. Add source to the queue and set the `visited[s]` to `true`.
+
+   ![BFS example step 2](./Graph/images/bfs_example_s2.png)
+
+3. Take vertex `0` from the queue, print `0`, explore this vertex and mark vertex `1` and `2` which was not visited as visited.
+
+   ![BFS example step 3](./Graph/images/bfs_example_s3.png)
+
+4. Take vertex `1` from the queue, print `1`, explore this vertex and mark vertex `3` which was not visited as visited.
+
+   ![BFS example step 4](./Graph/images/bfs_example_s4.png)
+
+5. Take vertex `2` from the queue, print `2`, explore this vertex and mark vertex `4` which was not visited as visited.
+
+   ![BFS example step 5](./Graph/images/bfs_example_s5.png)
+
+6. Take vertex `3` from the queue, print `3`, no vertex adjacent to it is unvisited so do nothing.
+
+   ![BFS example step 6](./Graph/images/bfs_example_s6.png)
+
+7. Take vertex `4` from the queue, print `4`, no vertex adjacent to it is unvisited so do nothing.
+
+   ![BFS example step 7](./Graph/images/bfs_example_s7.png)
+
+#### Implementation
+
+```c++
+#include <iostream>
+#include <vector>
+#include <queue>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+void BFS(vector<int> adj[], int V, int s)
+{
+    bool visited[V] = {false};
+    queue<int> q;
+
+    q.push(s);
+    visited[s] = true;
+
+    while (!q.empty())
+    {
+        int u = q.front();
+        q.pop();
+        cout << u << " ";
+
+        for (auto v : adj[u])
+        {
+            if (!visited[v])
+            {
+                q.push(v);
+                visited[v] = true;
+            }
+        }
+    }
+}
+
+int main()
+{
+    int V;
+    V = 5;
+    vector<int> adj[V];
+    addEdge(adj, 0, 1);
+    addEdge(adj, 0, 2);
+    addEdge(adj, 1, 2);
+    addEdge(adj, 1, 3);
+    addEdge(adj, 2, 3);
+    addEdge(adj, 2, 4);
+    addEdge(adj, 3, 4);
+
+    BFS(adj, V, 0);
+
+    return 0;
+}
+```
+
+**Second Version**
+In the first version, you just had to traverse the connected graph when the source is given. In this case, you are not given any source vertex and possibly the graph could be disconnected, how do you traverse the whole graph in BFS manner? Consider the following graph.
+
+![No source and disconnected BFS](./Graph/images/bfsv2.png)
+
+To traverse the above disconnected graph in BFS manner, we have to consider all vertex as possible source and check whether the vertex is visited or not. If the vertex is not visited then we call BFS considering this vertex as the source vertex.
+
+```c++
+#include <iostream>
+#include <vector>
+#include <queue>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+void BFS(vector<int> adj[], int source, bool visited[])
+{
+    queue<int> q;
+
+    q.push(source);
+    visited[source] = true;
+
+    while (!q.empty())
+    {
+        int u = q.front();
+        q.pop();
+        cout << u << " ";
+
+        for (auto v : adj[u])
+        {
+            if (!visited[v])
+            {
+                q.push(v);
+                visited[v] = true;
+            }
+        }
+    }
+}
+
+void BFSDis(vector<int> adj[], int V)
+{
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+        visited[i] = false;
+
+    for (int i = 0; i < V; i++)
+    {
+        if (!visited[i])
+        {
+            BFS(adj, i, visited);
+        }
+    }
+}
+
+int main()
+{
+    int V = 7;
+    vector<int> adj[V];
+    // Connected graph 1
+    addEdge(adj, 0, 1);
+    addEdge(adj, 0, 2);
+    addEdge(adj, 1, 3);
+    addEdge(adj, 2, 3);
+    // Connected graph 2
+    addEdge(adj, 4, 5);
+    addEdge(adj, 4, 6);
+    addEdge(adj, 5, 6);
+
+    BFSDis(adj, V);
+    return 0;
+}
+```
+
+Time complexity of this solution might seem bigger but if looked closely then it will come out to be $O(V+E)$. Why `V+E`? It is is because we are traversing all the adjacent edges of every vertex inside `BFS` function which is equal to `2*E` but why `V`? it is because in the worst case all the vertices are disconnected and we have to loop through all those vertices one by one in the `BFSDis` function.
+
+**Question: No of components in a graph / No of islands in a graph**
+Components in a graph are all the graphs which are connected.
+
+To find out the no of components in a disconnected graph, we have to increment the count which is initially `0` whenever we see an unvisited vertex.
+
+```c++
+void BFSDis(vector<int> adj[], int V)
+{
+    int count=0;
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+        visited[i] = false;
+
+    for (int i = 0; i < V; i++)
+    {
+        if (!visited[i])
+        {
+            BFS(adj, i, visited);
+            count++;
+        }
+    }
+    return count;
+}
+```
+
+#### Applications
+
+1. Shortest path in an undirected graph: BFS traverses the vertices according to their levels. The vertices which are 1-edge away from the source will be traversed first and then vertices that are 2-edge away.
+
+2. Crawlers in search engine: In web, documents has link to other documents and they has links to some other documents. Web crawlers use BFS to crawl the web by going to the immediate next documents that has link in the current document and then the documents linked to those documents.
+
+3. Peer to peer network: Sites like BitTorrent use BFS to search for immediate neighbours and then their neighbours and so on.
+
+4. Social networking search
+
+5. In garbage collection (Cheney's algorithm)
+
+6. Cycle detection
+
+7. Ford fulkerson algorithm
+
+8. Broadcasting
+
+### Depth First Search
+
+Given a source vertex, visit all the other vertices in DFS manner.
+
+If a source vertex is there then in DFS, we first print this and then we recursively call DFS for one of it's adjacent. After we are done visiting all of the connected vertices of it's adjacent and we do the same for other adjacents.
+
+For DFS, we follow a recursive approach. For every unvisited vertex, we find it's adjacent which is not yet visited, then go to that unvisited vertex, do the same for this vertex and go through all the vertices in a depth wise manner.
+
+#### Implementation
+
+```cpp
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+void DFSRec(vector<int> adj[], bool visited[], int source)
+{
+    cout << source << " ";
+    visited[source] = true;
+    for (auto v : adj[source])
+    {
+        if (!visited[v])
+            DFSRec(adj, visited, v);
+    }
+}
+
+void DFS(vector<int> adj[], int V, int source)
+{
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+    {
+        visited[i] = false;
+    }
+
+    DFSRec(adj, visited, source);
+}
+
+int main()
+{
+    int V = 7;
+    vector<int> adj[V];
+    addEdge(adj, 0, 1);
+    addEdge(adj, 1, 2);
+    addEdge(adj, 2, 3);
+    addEdge(adj, 0, 4);
+    addEdge(adj, 4, 5);
+    addEdge(adj, 5, 6);
+    addEdge(adj, 6, 4);
+
+    DFS(adj, V, 0);
+    return 0;
+}
+```
+
+#### Implementation for disconnected graph
+
+```cpp
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+void DFSRec(vector<int> adj[], bool visited[], int source)
+{
+    cout << source << " ";
+    visited[source] = true;
+    for (auto v : adj[source])
+    {
+        if (!visited[v])
+            DFSRec(adj, visited, v);
+    }
+}
+
+void DFSDis(vector<int> adj[], int V, int source)
+{
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+    {
+        visited[i] = false;
+    }
+
+    for (int i = 0; i < V; i++)
+    {
+        if (!visited[i])
+        {
+            DFSRec(adj, visited, i);
+        }
+    }
+}
+
+int main()
+{
+    int V = 5;
+    vector<int> adj[V];
+    addEdge(adj, 0, 1);
+    addEdge(adj, 1, 2);
+    addEdge(adj, 3, 4);
+
+    DFSDis(adj, V, 0);
+    return 0;
+}
+```
+
+#### Implementation for counting connected components
+
+```c++
+int BFSDis(vector<int> adj[], int V)
+{
+    int count=0;
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+        visited[i] = false;
+
+    for (int i = 0; i < V; i++)
+    {
+        if (!visited[i])
+        {
+            DFSRec(adj, i, visited);
+            count++;
+        }
+    }
+    return count;
+}
+```
+
+#### Applications of DFS
+
+1. Cycle Detection: DFS helps finding cycles in a graph. In DFS we naturally find after a certain depth whether the vertex has any visited vertex or not, if yes then it means it has cycle.
+2. Topological Sorting: Topological sorting uses DFS and it has an application in file making in software engineering. When there are dependencies among different files, topological sorting helps in scheduling which file should be executed before others to avoid dependency issues.
+3. Strongly connected components: Strongly connected components are solved using DFS. Mainly there are 2 algorithms kosaraju's algorithm and tarjan's algorithm.
+4. Maze problems and puzzles: Most puzzle problems where we have an initial state and we search through each solution in the tree leaf node whether that is a solution or not, for that we always prefer DFS as it gives better performance in finding the solution.
+5. Path finding: It is natural to use DFS when printing the path from source to destination as it always goes in the depth first manner and contains only the vertex that leads to the destination.

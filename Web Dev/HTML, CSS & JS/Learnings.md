@@ -39,6 +39,28 @@ The replaced content is not resized.
 `scale-down`
 The content is sized as if none or contain were specified, whichever would result in a smaller concrete object size.
 
+## Grid Auto
+
+To make automatic columns/rows withour specifying their numbers, you can use `grid-auto-flow` property.
+
+```css
+.grid-container {
+  display: grid;
+  grid-auto-flow: column;
+}
+```
+
+Now, you can add any number of columns to this grid container.
+
+To make gaps work, make sure that you do not fix their width (height in case of `grid-auto-flow: row;`).
+
+```css
+.grid-item {
+  /* Other properties */
+  /* width: 100%; X */
+}
+```
+
 ## JS Sort Function
 
 The `sort()` method of `Array` instances sorts the elements of an array _in place_ and returns the reference to the same array, now sorted. The default sort order is ascending, built upon converting the elements into strings, then comparing their sequences of UTF-16 code units values.

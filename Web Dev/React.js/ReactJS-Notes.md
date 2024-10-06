@@ -1309,7 +1309,7 @@ export default App;
 
 When you make changes to the styles part of one component, if that element is used in other components then they will be styled in the same way, if both are used together. Because when the page loads after building process, the css files needed for components are also loaded, so all styles become common to all elements in the page irrespective of which component it was isolated with.
 
-## Inline style
+### Inline style
 
 One solution to the problem could be inline styling of the components.
 
@@ -1340,7 +1340,7 @@ Disadvantages -
 1. You need to style every individual element.
 2. No seperation b/w JSX and CSS code.
 
-## Dynamic Styling with CSS Files and Classes
+### Dynamic Styling with CSS Files and Classes
 
 When adding dynamic class using `className` property, make sure to add a ternary exp that sets the `className` to `undefined` is the condition does not met, otherwise browser will throw a warning saying that "false was not a className".
 
@@ -1369,3 +1369,548 @@ If you want to add a `className` to a component along with a mandetory `classNam
 ```js
 <label className={`label ${emailNotValid ? "invalid" : ""}`}>Email</label>
 ```
+
+## Refs and Portals
+
+### Why ref?
+
+There are some situations where you may want to access the DOM element that are not inside the component. Using that DOM element's data you wanna change the UI when the component is triggered.
+
+Like the following case where you are trying to set name of the player when he/she clicks on the button and the name would be the value in the input element.
+
+```js
+import { useState } from "react";
+
+export default function Player() {
+  const [playerName, setPlayerName] = useState();
+  const [submitted, setSubmitted] = useState(false);
+
+  function handleChangeName(e) {
+    setSubmitted(false);
+    setPlayerName(e.target.value);
+  }
+
+  function handleSetName() {
+    setSubmitted(true);
+  }
+
+  return (
+    <section id="player">
+      <h2>Welcome {submitted ? playerName : "unknown entity"}</h2>
+      <p>
+        <input type="text" onChange={handleChangeName} value={playerName} />
+        <button onClick={handleSetName}>Set Name</button>
+      </p>
+    </section>
+  );
+}
+```
+
+But the problem here is, whenever you edit the input, the heading name will change back to "unknown entity". If you want to keep it as it is and then change the name when again `Set Name` is clicked then you have to use some more states. This is the issue here. Although you can introduce more states to manage this issue, but still makes the code too long.
+
+This is where `ref` comes in play.
+
+### What is ref?
+
+`ref` simply is a prop that is available in every react component. To use `ref`, you need to first create a `ref` instance from react using `useRef()` function. After you assign the `ref` for the component, the `ref` object will get access to all HTML properties available to that element.
+
+```js
+import { useState, useRef } from "react";
+
+export default function Player() {
+  const playerNameRef = useRef();
+
+  const [playerName, setPlayerName] = useState();
+
+  function handleSetName() {
+    setPlayerName(playerNameRef.current.value);
+  }
+
+  return (
+    <section id="player">
+      <h2>Welcome {playerName || "unknown entity"}</h2>
+      <p>
+        <input ref={playerNameRef} type="text" />
+        <button onClick={handleSetName}>Set Name</button>
+      </p>
+    </section>
+  );
+}
+```
+
+To access any property from the DOM use `ref.current` which holds all properties. `current` is the only property available to all all `ref` objects.
+
+Now, if you want to clear the input field whenever the user clicks on the Set Name button you can use `ref` to change the input value directly.
+
+> Although here it may seem like we are violating the rule of React for imperative code and not declarative code, because we are directly changing the input field value from react. But if you see that this saves a lot of code then you can go with it. Keeping in mind to not manipulate DOM using refs to avoid writing states because that is not the way React should work.
+
+### Use cases of ref
+
+Another use case of `ref`: When you have a timer that stores the id of a `setTimeout` function. You want to pass this timer id to `cleanTimerout` so that the time out function stops without expiring.
+
+If you use states you will re-evaluate the whole component when the state value changes, which you don't want because it does not effect the UI much.
+
+If you use a variable to take care of it, then the variable will be reset when any state changes and component re-evaluates.
+
+If you use global variable then it is shared among all other components and if some other instance of the component run after the current instance then the global variable will point to another timer id and the current timer id will be lost.
+
+`ref` is handy in this case because it does not re-evaluate the component when value is changed, it maintains it's value even after component re-evaluates and it is different for all instances of the component.
+
+```js
+export default function TimerChallenge({ title, targetTime }) {
+  const timer = useRef();
+
+  const [timerStarted, setTimerStarted] = useState(false);
+  const [timerExpired, setTimerExpired] = useState(false);
+
+  function handleStart() {
+    timer.current = setTimeout(() => {
+      setTimerExpired(true);
+    }, targetTime * 1000);
+    setTimerStarted(true);
+  }
+
+  function handleStop() {
+    clearTimeout(timer.current);
+  }
+
+  return (
+    <>
+      {timerExpired && <ResultsModal result={"lost"} targetTime={targetTime} />}
+      <section className="challenge">
+        <h1>{title}</h1>
+        {timerExpired ? <p>You lost.</p> : ""}
+        <p className="challenge-time">
+          {targetTime} second{targetTime > 1 ? "s" : ""}
+        </p>
+        <p>
+          <button onClick={timerStarted ? handleStop : handleStart}>
+            {timerStarted ? "Stop" : "Start"} Challenge
+          </button>
+        </p>
+        <p className="">
+          {timerStarted ? "Time is running..." : "Timer Inactive"}
+        </p>
+      </section>
+    </>
+  );
+}
+```
+
+### Forward ref
+
+Let's take a situation where you want to access a components DOM element and decide to manipulate it based on the current components calculation.
+
+You want to show a modal when the user timer expires and let the user know whether he won or lost. There is a component that shows the modal `ResultsModal` and another component `TimerChallenge` that starts and stops the timer.
+
+In HTML, there is `dialog` element that helps to open modal but the problem is if not opened programmatically, it will not overlay the background properly.
+
+```js
+export function ResultsModal({ result, targetTime }) {
+  return (
+    <dialog className="result-modal" open>
+      <h2>You {result}</h2>
+      <p>
+        Your target time was <strong>{targetTime} seconds.</strong>
+      </p>
+      <p>
+        You stopped the timer with <strong>X seconds left.</strong>
+      </p>
+      <form method="dialog">
+        <button>Close</button>
+      </form>
+    </dialog>
+  );
+}
+```
+
+The `open` attribute will focefully open the modal and not overlay the background.
+
+Instead to do it properly, we need to show it conditionally and with programming logic.
+
+For that we need to use `ref` so that we can get the access of the `dialog` element and use the `showModal` function to show the modal and also show the overlay.
+
+To use `ref` and pass them to custom component, we can't just pass it as a `prop`, it will give error.
+
+To do the above, we need to use `forwardRef` method to wrap the `ResultsModal` component and get access to the `ref`.
+
+After doing that, we can pass the `ref` value as prop to the custom component.
+
+```js
+import { forwardRef } from "react";
+
+const ResultsModal = forwardRef(({ result, targetTime }, ref) => {
+  return (
+    <dialog ref={ref} className="result-modal" open>
+      <h2>You {result}</h2>
+      <p>
+        Your target time was <strong>{targetTime} seconds.</strong>
+      </p>
+      <p>
+        You stopped the timer with <strong>X seconds left.</strong>
+      </p>
+      <form method="dialog">
+        <button>Close</button>
+      </form>
+    </dialog>
+  );
+});
+
+export default ResultsModal;
+```
+
+`forwardRef` returns a value so instead of a function, we need to catch it inside a variable and export it later.
+
+`forwardRef` also gives access to `ref` as a paramter to the component defined inside.
+
+### useImperativeHandle
+
+Sometimes when developing a large project, you might wanna make the usage of the forwardRef component simpler for users who are using it by just introducing a simple `open` function that opens the modal and does not let the user think too much about the way this modal is called.
+
+Because right now, we are using `dialog` element which comes with `showModal` method but later if the owner changes the `dialog` to `div` then it will break the working of users who were doing it using `showModal`.
+
+To achieve the above, we can use `useImperativeHandle` that takes the `ref` from outside and links this `ref` to the object returned by it. The object will contain `open` that is a general function used for opening the modal no matter of the implementation specification.
+
+## Context API and useReducer
+
+Domo application: [Advanced state management using context API](https://codesandbox.io/p/sandbox/adv-state-mgmt-context-start-forked-v42lsq)
+
+### Problems with normal state management
+
+Sometimes state management becomes very messy when there lots of components that are passing the same state without doing anything with it inside the component body, just forwarding the state without doing anything to it.
+
+This issue is called prop drilling where you just drill the state till the component that uses it.
+
+To fix this issue, we are going to use context API and useReducer.
+
+### React context API
+
+Context API provides the facility to share the same state accross multiple components without sending the states to next components. The best thing about context API is that it can belink with the state that is needed for components, and possibly all components get the facility to use it whenever they want.
+
+### Creating context API
+
+To create a context, first make a folder `store` (convention but not necessary) that stores the contexts and other data for all the components.
+
+_shopping-cart-context.jsx_
+
+```js
+import { createContext } from "react";
+
+export const CartContext = createContext({
+  items: [],
+});
+```
+
+In React context API, there is a provider who provides the context and consumer who consumes the context.
+
+For creating the provider, you have to wrap the component within `ContextComp.Provider` component.
+
+_App.jsx_
+
+```js
+import { CartContext } from "./store/shopping-cart-context.jsx";
+
+function App() {
+  // ... Code
+  return (
+    <CartContext.Provider>
+      <Header
+        cart={shoppingCart}
+        onUpdateCartItemQuantity={handleUpdateCartItemQuantity}
+      />
+      <Shop onAddItemToCart={handleAddItemToCart} />
+    </CartContext.Provider>
+  );
+}
+```
+
+Now, to use this context in other components we need 2 things - `useContext` and `CartContext`.
+
+_Cart.jsx_
+
+```js
+import { useContext } from "react";
+import { CartContext } from "../store/shopping-cart-context.jsx";
+
+export default function Cart({ onUpdateItemQuantity }) {
+  const { items } = useContext(CartContext);
+
+  const totalPrice = items.reduce(
+    (acc, item) => acc + item.price * item.quantity,
+    0
+  );
+  const formattedTotalPrice = `$${totalPrice.toFixed(2)}`;
+
+  return (
+    <div id="cart">
+      {items.length === 0 && <p>No items in cart!</p>}
+      {items.length > 0 && (
+        <ul id="cart-items">
+          {items.map((item) => {
+            const formattedPrice = `$${item.price.toFixed(2)}`;
+
+            return (
+              <li key={item.id}>
+                <div>
+                  <span>{item.name}</span>
+                  <span> ({formattedPrice})</span>
+                </div>
+                <div className="cart-item-actions">
+                  <button onClick={() => onUpdateItemQuantity(item.id, -1)}>
+                    -
+                  </button>
+                  <span>{item.quantity}</span>
+                  <button onClick={() => onUpdateItemQuantity(item.id, 1)}>
+                    +
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p id="cart-total-price">
+        Cart Total: <strong>{formattedTotalPrice}</strong>
+      </p>
+    </div>
+  );
+}
+```
+
+### Linking state to context
+
+Right now, the value of the context will always be same as we are directly passing a value. To change the values depending on whether an item is clicked and added to the cart, you have to use the state and set the value to the state so that the context linked state modifies along the actual state.
+
+In the value prop you can also pass the functions that you want to use in different components.
+
+_Product.jsx_
+
+```js
+import { CartContext } from "../store/shopping-cart-context.jsx";
+import { useContext } from "react";
+
+export default function Product({ id, image, title, price, description }) {
+  const { onAddToCart } = useContext(CartContext);
+
+  return (
+    <article className="product">
+      <img src={image} alt={title} />
+      <div className="product-content">
+        <div>
+          <h3>{title}</h3>
+          <p className="product-price">${price}</p>
+          <p>{description}</p>
+        </div>
+        <p className="product-actions">
+          <button onClick={() => onAddToCart(id)}>Add to Cart</button>
+        </p>
+      </div>
+    </article>
+  );
+}
+```
+
+_App.jsx_
+
+```js
+import { CartContext } from "./store/shopping-cart-context.jsx";
+
+function App() {
+  // ... Code
+  const cartCtx = {
+    items: shoppingCart.items,
+    onAddToCart: handleAddItemToCart,
+  };
+
+  return (
+    <CartContext.Provider value={cartCtx}>
+      <Header
+        cart={shoppingCart}
+        onUpdateCartItemQuantity={handleUpdateCartItemQuantity}
+      />
+      <Shop>
+        {DUMMY_PRODUCTS.map((product) => (
+          <li key={product.id}>
+            <Product {...product} />
+          </li>
+        ))}
+      </Shop>
+    </CartContext.Provider>
+  );
+}
+```
+
+## Taking care of side effects and useEffect hook
+
+### What are side effects?
+
+Side effects are those `tasks` that does not directly impact your component render cycle but still needs to be executed.
+
+In the demo app [side effects forked at codesandbox](https://codesandbox.io/p/sandbox/effects-start-forked-c55gmq), we want to sort the selected places by their distance from the user. To do that, I need to know the exact location of the user and then use the `sortSelectedPlaces` method using the places selected and the location of the user.
+
+Every component in React has a goal of returning some JSX code which will be rendered on the user screen. Anything related to that is important but anything other than that is called a side effect.
+
+_App.jsx_
+
+```js
+function App() {
+  const modal = useRef();
+  const selectedPlace = useRef();
+  const [pickedPlaces, setPickedPlaces] = useState([]);
+
+  // Side Effect - sorting places based on user current location
+  navigator.geolocation.getCurrentPosition((position) => {
+    const sortedPlaces = sortPlacesByDistance(
+      AVAILABLE_PLACES,
+      position.coords.latitude,
+      position.coords.longitude
+    );
+  });
+
+  function handleStartRemovePlace(id) {
+    modal.current.open();
+    selectedPlace.current = id;
+  }
+
+  function handleStopRemovePlace() {
+    modal.current.close();
+  }
+
+  function handleSelectPlace(id) {
+    setPickedPlaces((prevPickedPlaces) => {
+      if (prevPickedPlaces.some((place) => place.id === id)) {
+        return prevPickedPlaces;
+      }
+      const place = AVAILABLE_PLACES.find((place) => place.id === id);
+      return [place, ...prevPickedPlaces];
+    });
+  }
+
+  function handleRemovePlace() {
+    setPickedPlaces((prevPickedPlaces) =>
+      prevPickedPlaces.filter((place) => place.id !== selectedPlace.current)
+    );
+    modal.current.close();
+  }
+
+  return (
+    <>
+      <Modal ref={modal}>
+        <DeleteConfirmation
+          onCancel={handleStopRemovePlace}
+          onConfirm={handleRemovePlace}
+        />
+      </Modal>
+
+      <header>
+        <img src={logoImg} alt="Stylized globe" />
+        <h1>PlacePicker</h1>
+        <p>
+          Create your personal collection of places you would like to visit or
+          you have visited.
+        </p>
+      </header>
+      <main>
+        <Places
+          title="I'd like to visit ..."
+          fallbackText={"Select the places you would like to visit below."}
+          places={pickedPlaces}
+          onSelectPlace={handleStartRemovePlace}
+        />
+        <Places
+          title="Available Places"
+          places={AVAILABLE_PLACES}
+          onSelectPlace={handleSelectPlace}
+        />
+      </main>
+    </>
+  );
+}
+```
+
+Here getting the current location will happen when the component is loaded although it won't do anything to it.
+
+To make it do something, we need a state that will be passed to the `Places` component and will be shown in the sorted order based on distance.
+
+```js
+function App() {
+  // Code...
+  const [avaialblePlaces, setAvailablePlaces] = useState([]);
+
+  navigator.geolocation.getCurrentPosition((position) => {
+    const sortedPlaces = sortPlacesByDistance(
+      AVAILABLE_PLACES,
+      position.coords.latitude,
+      position.coords.longitude
+    );
+    setAvailablePlaces(sortedPlaces);
+  });
+
+  // Code...
+
+  return (
+    <>
+      Code...
+      <main>
+        Code...
+        <Places
+          title="Available Places"
+          places={avaialblePlaces}
+          onSelectPlace={handleSelectPlace}
+        />
+      </main>
+    </>
+  );
+}
+```
+
+But, this code has a huge problem. Infinite loops of state change. When the first time state update method is called, the component is called and then again the same code line will run and try to update the state again and this will go on creating an infinite loop.
+
+This is the reason we need to take care of side effects effectively to avoid such situations.
+
+To do that, we need to use `useEffect` hook that will take care of this side effect problem.
+
+```js
+useEffect(() => {
+  navigator.geolocation.getCurrentPosition((position) => {
+    const sortedPlaces = sortPlacesByDistance(
+      AVAILABLE_PLACES,
+      position.coords.latitude,
+      position.coords.longitude
+    );
+    setAvailablePlaces(sortedPlaces);
+  });
+}, []);
+```
+
+With `useEffect` hook, the function defined inside it will only run after all the code inside the component and has run and the JSX code is returned.
+
+Only after this will the code inside the `useEffect` will run. But if that is the logic then you might wander, don't we have the same problem like before? Because we are going to update the state and `useEffect` will run again which essentially will create the same infinite loop. That is where the second argument comes into play. As you can see it is an `[]` empty array which says to react that the `useEffect` has no dependencies and because of that it does not need to run the code again after re-evaluating the component for the first time in the 1st `useEffect` call.
+
+If there were some dependencies included in the `[]` then depending on their changes the `useEffect` hook will run the code inside it again. If you remove this dependencies array then the `useEffect` code will be re-executes again therefore introducing the same infinite loop problem.
+
+Therefore react never re-executes the code inside it after it has done so for once.
+
+### Not all side effects need `useEffect`
+
+Not all side effects need to be handled by `useEffect`, remember to only use them when they are necessary otherwise it will just be an overhead as it is called after the component execution.
+
+For example, if you need to store the selected places inside localstorage then you are also writing some side effect code.
+
+```js
+function handleSelectPlace(id) {
+  setPickedPlaces((prevPickedPlaces) => {
+    if (prevPickedPlaces.some((place) => place.id === id)) {
+      return prevPickedPlaces;
+    }
+    const place = AVAILABLE_PLACES.find((place) => place.id === id);
+    return [place, ...prevPickedPlaces];
+  });
+
+  const pickedIds = localStorage.getItem("selectedPlaces") || [];
+  if (pickedIds.indexOf("id" > -1)) return;
+  localStorage.setItem("selectedPlaces", JSON.jsonify([id, ...pickedIds]));
+}
+```
+
+It is ok to define this side effect inside the `handleSelectPlace` function because it does not create any infinite loop and also it makes sense to use it here, as we only add the place when user clicks on the image.

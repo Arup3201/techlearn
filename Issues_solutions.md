@@ -106,7 +106,7 @@ python test/test_user_services.py
 If you want to do so, you have run the following command instead-
 
 ```
-python -m user.test.test_something.py
+python -m user.test.test_something
 ```
 
 ## Backend Development
@@ -201,6 +201,12 @@ export default defineConfig({
 });
 ```
 
+### Issue 3: Whenever there is an error in fetching, all states in the react application lose values
+
+Try using `catch` block to catch the rejected promise instance otherwise it will go to the root application where all states are reset.
+
+By using `catch` block it will prevent the flow of application to go back to the root to find any possible catch statement there. Which in turn will resolve this issue.
+
 ## Streamlit Deployment
 
 ### Issue 1: Dependency issues
@@ -233,3 +239,31 @@ If you are using nltk then make sure to download the 'popular' or any similar vo
 ### Testing is not detected
 
 Sometimes you will notice that your test cases are not being detected. In those cases, you first have to run the test manually in the powershell and after they run successfully, then only VS Code will detect those test files.
+
+## Postgres
+
+### SQLAlchemy create database case sensitive
+
+```py
+from sqlalchemy_utils import database_exists
+engine = create_engine(f'postgresql://{env_config.PG_DB_USER}:{env_config.PG_DB_PWD}@{env_config.PG_DB_HOST}/{"Enegma"}')
+if not database_exists(engine.url):
+    create_database(db_name="Enegma")
+```
+
+Double quotes are for names of tables or fields. Sometimes You can omit them. The single quotes are for string constants. This is the SQL standard.
+
+So when creating database make sure to use double quotes for the name in sqlalchemy:
+
+```py
+from sqlalchemy import create_engine, text
+from base import env_config
+
+def create_database(db_name):
+    engine = create_engine(f'postgresql://{env_config.PG_DB_USER}:{env_config.PG_DB_PWD}@{env_config.PG_DB_HOST}/{env_config.BASE_DB}')
+
+    # postgresql is case insensitive when used without quotes
+    # To make sure we are saving the database with name mentioned in db_name parameter
+    with engine.connect() as connection:
+        connection.execute(text(f'CREATE DATABASE "{db_name}"'))
+```
