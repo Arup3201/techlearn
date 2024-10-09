@@ -1571,6 +1571,90 @@ Because right now, we are using `dialog` element which comes with `showModal` me
 
 To achieve the above, we can use `useImperativeHandle` that takes the `ref` from outside and links this `ref` to the object returned by it. The object will contain `open` that is a general function used for opening the modal no matter of the implementation specification.
 
+```js
+import { forwardRef, useImperativeHandle, useRef } from "react";
+
+const ResultsModal = forwardRef(
+  ({ targetTime, remainingTime, onReset }, ref) => {
+    const dialog = useRef();
+
+    const userLost = remainingTime <= 0;
+    const formattedRemainingTime = (remainingTime / 1000).toFixed(2);
+
+    useImperativeHandle(ref, () => ({
+      open() {
+        dialog.current.showModal();
+      },
+    }));
+
+    return (
+      <dialog ref={dialog} className="result-modal">
+        {userLost && <h2>You lost</h2>}
+        <p>
+          Your target time was <strong>{targetTime} seconds.</strong>
+        </p>
+        <p>
+          You stopped the timer with{" "}
+          <strong>{formattedRemainingTime} seconds left.</strong>
+        </p>
+        <form method="dialog" onSubmit={onReset}>
+          <button>Close</button>
+        </form>
+      </dialog>
+    );
+  }
+);
+
+export default ResultsModal;
+```
+
+### Portal
+
+Like the example we have been talking about so far, there could be react elements that you might want render somewhere else than where it is placed by default by the DOM.
+
+The dialog component in the example is rendered near the `challenges` section because that is where it is called.
+
+But, technically it should not be there. It is not a functional detail but a technical detail that might help you avoid unnecessary styling conflicts as it becomes part of some other DOM element which could be nested.
+
+That is where portals come into picture. Just the name says, it teleports the component somewhere else in the DOM with where the developer wants it to be.
+
+Unlike other functions so far, to create portal you need something called `createPortal` imported from `react-dom` and not `react`!
+
+It takes 2 arguments, first is the component JSX code and second is the DOM element where you want to put the JSX code into.
+
+Here, there is a `div` with the id `modal`, you can target it using JS function `document.getElementById` to get the element using the id.
+
+```js
+// ...
+import { createPortal } from "react-dom";
+
+const ResultsModal = forwardRef(
+  ({ targetTime, remainingTime, onReset }, ref) => {
+    // ...
+
+    return createPortal(
+      <dialog ref={dialog} className="result-modal" onClose={onReset}>
+        {userLost && <h2>You lost</h2>}
+        {!userLost && <h2>Your score {score}</h2>}
+        <p>
+          Your target time was <strong>{targetTime} seconds.</strong>
+        </p>
+        <p>
+          You stopped the timer with{" "}
+          <strong>{formattedRemainingTime} seconds left.</strong>
+        </p>
+        <form method="dialog" onSubmit={onReset}>
+          <button>Close</button>
+        </form>
+      </dialog>,
+      document.getElementById("modal")
+    );
+  }
+);
+
+export default ResultsModal;
+```
+
 ## Context API and useReducer
 
 Domo application: [Advanced state management using context API](https://codesandbox.io/p/sandbox/adv-state-mgmt-context-start-forked-v42lsq)

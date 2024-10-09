@@ -180,3 +180,269 @@ You can then pass these logits to a final softmax layer, where they are normaliz
 This output includes a probability for every single word in the vocabulary, so there's likely to be thousands of scores here. One single token will have a score higher than the rest. This is the most likely predicted token.
 
 ![Transformer softmax layer](./images/transformer-softmax-layer.png)
+
+## Example of transfomer working on text
+
+At this point, you've seen a high-level overview of some of the major components inside the transformer architecture. But you still haven't seen how the overall prediction process works from end to end.
+
+Let's walk through a simple example. In this example, you'll look at a translation task or a sequence-to-sequence task, which incidentally was the original objective of the transformer architecture designers.
+
+You'll use a transformer model to translate the French phrase into English.
+
+First, you'll tokenize the input words using this same tokenizer that was used to train the network.
+
+These tokens are then added into the input on the encoder side of the network, passed through the embedding layer, and then fed into the multi-headed attention layers.
+
+The outputs of the multi-headed attention layers are fed through a feed-forward network to the output of the encoder.
+
+At this point, the data that leaves the encoder is a deep representation of the structure and meaning of the input sequence.
+
+This representation is inserted into the middle of the decoder to influence the decoder's self-attention mechanisms.
+
+Next, a start of sequence token is added to the input of the decoder.
+
+This triggers the decoder to predict the next token, which it does based on the contextual understanding that it's being provided from the encoder.
+
+The output of the decoder's self-attention layers gets passed through the decoder feed-forward network and through a final softmax output layer.
+
+At this point, we have our first token.
+
+You'll continue this loop, passing the output token back to the input to trigger the generation of the next token, until the model predicts an end-of-sequence token.
+
+At this point, the final sequence of tokens can be detokenized into words, and you have your output. In this case, I love machine learning.
+
+![Example of translation using transformer](./images/transformer-working-example.png)
+
+There are multiple ways in which you can use the output from the softmax layer to predict the next token. These can influence how creative your generated text is.
+
+## Types of Models - Encoder Only, Encoder-Decoder and Decoder Only models
+
+The complete transformer architecture consists of an encoder and decoder components.
+
+The encoder encodes input sequences into a deep representation of the structure and meaning of the input. The decoder, working from input token triggers, uses the encoder's contextual understanding to generate new tokens.
+
+It does this in a loop until some stop condition has been reached.
+
+While the translation example you explored here used both the encoder and decoder parts of the transformer, you can split these components apart for variations of the architecture.
+
+1. Encoder-only models also work as sequence-to-sequence models, but without further modification, the input sequence and the output sequence are of the same length. Their use is less common these days, but by adding additional layers to the architecture, you can train encoder-only models to perform classification tasks such as sentiment analysis, BERT is an example of an encoder-only model.
+
+2. Encoder-decoder models, as you've seen, perform well on sequence-to-sequence tasks such as translation, where the input sequence and the output sequence can be different lengths. You can also scale and train this type of model to perform general text generation tasks. Examples of encoder-decoder models include BART as opposed to BERT and T5.
+
+3. Finally, decoder-only models are some of the most commonly used today. Again, as they have scaled, their capabilities have grown. These models can now generalize to most tasks. Popular decoder-only models include the GPT family of models, BLOOM, Jurassic, LLaMA, and many more.
+
+## In-context learning and types of in-context learning
+
+The text that you feed into the model is called the prompt, the act of generating text is known as inference, and the output text is known as the completion. The full amount of text or the memory that is available to use for the prompt is called the context window.
+
+Although the example here shows the model performing well, you'll frequently encounter situations where the model doesn't produce the outcome that you want on the first try.
+
+You may have to revise the language in your prompt or the way that it's written several times to get the model to behave in the way that you want.
+
+This work to develop and improve the prompt is known as prompt engineering. This is a big topic. But one powerful strategy to get the model to produce better outcomes is to include examples of the task that you want the model to carry out inside the prompt.
+
+Providing examples inside the context window is called in-context learning.
+
+Let's take a look at what this term means. With in-context learning, you can help LLMs learn more about the task being asked by including examples or additional data in the prompt.
+
+Here is a concrete example. Within the prompt shown here, you ask the model to classify the sentiment of a review.
+
+![Zero shot inference in prompt engineering](./images/prompt-engineering-zero-shot-example.png)
+
+So whether the review of this movie is positive or negative, the prompt consists of the instruction, "Classify this review," followed by some context, which in this case is the review text itself, and an instruction to produce the sentiment at the end.
+
+This method, including your input data within the prompt, is called `zero-shot inference`.
+
+The largest of the LLMs are surprisingly good at this, grasping the task to be completed and returning a good answer.
+
+In this example, the model correctly identifies the sentiment as positive.
+
+Smaller models, on the other hand, can struggle with this.
+
+![Zero shot inference with small model does not work](./images/prompt-engineering-zero-shot-fails.png)
+
+Here's an example of a completion generated by GPT-2, an earlier smaller version of the model that powers ChatGPT. As you can see, the model doesn't follow the instruction. While it does generate text with some relation to the prompt, the model can't figure out the details of the task and does not identify the sentiment.
+
+This is where providing an example within the prompt can improve performance.
+
+![One shot inference for small models to understand the context better](./images/prompt-engineering-one-shot-example.png)
+
+Here you can see that the prompt text is longer and now starts with a completed example that demonstrates the tasks to be carried out to the model.
+
+After specifying that the model should classify the review, the prompt text includes a sample review. "I loved this movie", followed by a completed sentiment analysis. In this case, the review is positive.
+
+Next, the prompt states the instruction again and includes the actual input review that we want the model to analyze.
+
+You pass this new longer prompt to the smaller model, which now has a better chance of understanding the task you're specifying and the format of the response that you want.
+
+The inclusion of a single example is known as one-shot inference, in contrast to the zero-shot prompt you supplied earlier.
+
+Sometimes a single example won't be enough for the model to learn what you want it to do. So you can extend the idea of giving a single example to include multiple examples.
+
+![Few shot inference for smaller models that fail with one-shot](./images/prompt-engineering-few-shot-example.png)
+
+This is known as few-shot inference. Here, you're working with an even smaller model that failed to carry out good sentiment analysis with one-shot inference.
+
+Instead, you're going to try few-shot inference by including a second example. This time, a negative review, including a mix of examples with different output classes can help the model to understand what it needs to do.
+
+You pass the new prompts to the model. And this time it understands the instruction and generates a completion that correctly identifies the sentiment of the review as negative.
+
+So to recap, you can engineer your prompts to encourage the model to learn by examples. While the largest models are good at zero-shot inference with no examples, smaller models can benefit from one-shot or few-shot inference that include examples of the desired behavior.
+
+But remember the context window because you have a limit on the amount of in-context learning that you can pass into the model.
+
+Generally, if you find that your model isn't performing well when, say, including five or six examples, you should try fine-tuning your model instead.
+
+Fine-tuning performs additional training on the model using new data to make it more capable of the task you want it to perform.
+
+## Parameters: `Max Token`, `Sample Top K`, `Sample Top P` & `Temperature`
+
+In this part, you'll examine some of the methods and associated configuration parameters that you can use to influence the way that the model makes the final decision about next-word generation.
+
+If you've used LLMs in playgrounds such as on the Hugging Face website or on AWS, you might have been presented with controls like these to adjust how the LLM behaves.
+
+![Configuration parameters in LLMs](./images/llm-configuration-parameters.png)
+
+Each model exposes a set of configuration parameters that can influence the model's output during inference.
+
+Note that these are different than the training parameters which are learned during training time.
+
+Instead, these configuration parameters are invoked at inference time and give you control over things like the maximum number of tokens in the completion, and how creative the output is.
+
+Max new tokens is probably the simplest of these parameters, and you can use it to limit the number of tokens that the model will generate.
+
+You can think of this as putting a cap on the number of times the model will go through the selection process.
+
+Here you can see examples of max new tokens being set to 100, 150, or 200.
+
+![LLMs configuration parameters max new tokens](./images/llm-configuration-parameters-max-token.png)
+
+But note how the length of the completion in the example for 200 is shorter.
+
+This is because another stop condition was reached, such as the model predicting and end of sequence token.
+
+Remember it's max new tokens, not a hard number of new tokens generated.
+
+The output from the transformer's softmax layer is a probability distribution across the entire dictionary of words that the model uses.
+
+![alt text](./images/llm-configuration-final-output-distribution.png)
+
+Here you can see a selection of words and their probability score next to them. Although we are only showing four words here, imagine that this is a list that carries on to the complete dictionary.
+
+Most large language models by default will operate with so-called greedy decoding.
+
+This is the simplest form of next-word prediction, where the model will always choose the word with the highest probability.
+
+This method can work very well for short generation but is susceptible to repeated words or repeated sequences of words.
+
+If you want to generate text that's more natural, more creative and avoids repeating words, you need to use some other controls.
+
+Random sampling is the easiest way to introduce some variability.
+
+Instead of selecting the most probable word every time with random sampling, the model chooses an output word at random using the probability distribution to weight the selection.
+
+For example, in the illustration, the word banana has a probability score of 0.02.
+
+![alt text](./images/llm-configuration-parameter-greedy-random.png)
+
+With random sampling, this equates to a 2% chance that this word will be selected. By using this sampling technique, we reduce the likelihood that words will be repeated.
+
+However, depending on the setting, there is a possibility that the output may be too creative, producing words that cause the generation to wander off into topics or words that just don't make sense.
+
+Note that in some implementations, you may need to disable greedy and enable random sampling explicitly.
+
+For example, the Hugging Face transformers implementation that we use in the lab requires that we set do sample to equal true.
+
+Let's explore top k and top p sampling techniques to help limit the random sampling and increase the chance that the output will be sensible.
+
+Two Settings, top p and top k are sampling techniques that we can use to help limit the random sampling and increase the chance that the output will be sensible.
+
+To limit the options while still allowing some variability, you can specify a top k value which instructs the model to choose from only the k tokens with the highest probability.
+
+![alt text](./images/llm-configuration-parameter-top-k.png)
+
+In this example here, k is set to three, so you're restricting the model to choose from these three options.
+
+The model then selects from these options using the probability weighting and in this case, it chooses donut as the next word.
+
+This method can help the model have some randomness while preventing the selection of highly improbable completion words.
+
+This in turn makes your text generation more likely to sound reasonable and to make sense.
+
+Alternatively, you can use the top p setting to limit the random sampling to the predictions whose combined probabilities do not exceed p.
+
+![alt text](./images/llm-configuration-parameter-top-p.png)
+
+For example, if you set p to equal 0.3, the options are cake and donut since their probabilities of 0.2 and 0.1 add up to 0.3.
+
+The model then uses the random probability weighting method to choose from these tokens.
+
+With top k, you specify the number of tokens to randomly choose from, and with top p, you specify the total probability that you want the model to choose from.
+
+One more parameter that you can use to control the randomness of the model output is known as temperature.
+
+This parameter influences the shape of the probability distribution that the model calculates for the next token.
+
+Broadly speaking, the higher the temperature, the higher the randomness, and the lower the temperature, the lower the randomness.
+
+The temperature value is a scaling factor that's applied within the final softmax layer of the model that impacts the shape of the probability distribution of the next token.
+
+![alt text](./images/llm-configuration-parameter-temperature.png)
+
+In contrast to the top k and top p parameters, changing the temperature actually alters the predictions that the model will make.
+
+If you choose a low value of temperature, say less than one, the resulting probability distribution from the softmax layer is more strongly peaked with the probability being concentrated in a smaller number of words.
+
+You can see this here in the blue bars beside the table, which show a probability bar chart turned on its side. Most of the probability here is concentrated on the word cake.
+
+The model will select from this distribution using random sampling and the resulting text will be less random and will more closely follow the most likely word sequences that the model learned during training.
+
+If instead you set the temperature to a higher value, say, greater than one, then the model will calculate a broader flatter probability distribution for the next token.
+
+Notice that in contrast to the blue bars, the probability is more evenly spread across the tokens.
+
+This leads the model to generate text with a higher degree of randomness and more variability in the output compared to a cool temperature setting. This can help you generate text that sounds more creative.
+
+If you leave the temperature value equal to one, this will leave the softmax function as default and the unaltered probability distribution will be used.
+
+## Generative AI life cycle
+
+In this section, you'll walk through a generative AI project life cycle that can help guide you through this work.
+
+This framework maps out the tasks required to take your project from conception to launch.
+
+Here is a diagram of the overall life cycle.
+
+![Generative AI project life cycle](./images/gen-ai-project-life-cycle.png)
+
+The most important step in any project is to define the scope as accurately and narrowly as you can.
+
+LLMs are capable of carrying out many tasks, but their abilities depend strongly on the size and architecture of the model.
+
+You should think about what function the LLM will have in your specific application. Do you need the model to be able to carry out many different tasks, including long-form text generation or with a high degree of capability, or is the task much more specific like named entity recognition so that your model only needs to be good at one thing.
+
+Getting really specific about what you need your model to do can save you time and perhaps more importantly, compute cost.
+
+Once you're happy, and you've scoped your model requirements enough to begin development. Your first decision will be whether to train your own model from scratch or work with an existing base model.
+
+In general, you'll start with an existing model, although there are some cases where you may find it necessary to train a model from scratch.
+
+With your model in hand, the next step is to assess its performance and carry out additional training if needed for your application.
+
+Prompt engineering can sometimes be enough to get your model to perform well, so you'll likely start by trying in-context learning, using examples suited to your task and use case.
+
+There are still cases, however, where the model may not perform as well as you need, even with one or a few shot inference, and in that case, you can try fine-tuning your model.
+
+As models become more capable, it's becoming increasingly important to ensure that they behave well and in a way that is aligned with human preferences in deployment. An additional fine-tuning technique called reinforcement learning with human feedback, which can help to make sure that your model behaves well.
+
+An important aspect of all of these techniques is evaluation.
+
+Note that this adapt and aligned stage of app development can be highly iterative. You may start by trying prompt engineering and evaluating the outputs, then using fine tuning to improve performance and then revisiting and evaluating prompt engineering one more time to get the performance that you need.
+
+Finally, when you've got a model that is meeting your performance needs and is well aligned, you can deploy it into your infrastructure and integrate it with your application.
+
+At this stage, an important step is to optimize your model for deployment. This can ensure that you're making the best use of your compute resources and providing the best possible experience for the users of your application.
+
+The last but very important step is to consider any additional infrastructure that your application will require to work well.
+
+There are some fundamental limitations of LLMs that can be difficult to overcome through training alone like their tendency to invent information when they don't know an answer, or their limited ability to carry out complex reasoning and mathematics.
