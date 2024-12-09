@@ -2,6 +2,7 @@
 
 #include<stdio.h>
 #include<stddef.h>
+#include<unistd.h>
 #include<errno.h>
 #include<stdlib.h>
 #include<string.h>
@@ -13,7 +14,13 @@ int make_named_socket(const char *filename) {
 	int sock = socket(PF_LOCAL, SOCK_DGRAM, 0);
 	if(sock < 0) {
 		perror("socket");
-		return 1;
+		return -1;
+	}
+
+	int yes = 1;
+	if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))==-1) {
+		perror("setsockopt");
+		return -1;
 	}
 
 	struct sockaddr_un name;
@@ -25,7 +32,7 @@ int make_named_socket(const char *filename) {
 	size = SUN_LEN(&name); 
 	if(bind(sock, (struct sockaddr*)&name, size) < 0) {
 		perror("bind");
-		return 1;
+		return -1;
 	}
 
 	return sock;
@@ -35,10 +42,6 @@ int main(int argc, char* argv[]) {
 	const char* const socket_name = argv[1];
 	int sock = make_named_socket(socket_name);
 	printf("sock=%d\n", sock);
-	int close_status = shutdown(sock, 2);
-	if(close_status < 0) {
-		perror("shutdown");
-		return 1;
-	}
+	unlink(socket_name);
 	return 0;
 }

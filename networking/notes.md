@@ -69,3 +69,19 @@ if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))==-1) {
 	return 1;
 }
 ```
+
+For more detailed explanation about the close and shutdown, you may read [this](https://beej.us/guide/bgnet/html/#close-and-shutdownget-outta-my-face).
+
+When you are trying to use `PF_LOCAL` which is the local namespace, and you are using files as the server address, then you have to delete those files after the connection has been closed.
+
+You can do that using `unlink`.
+```c
+#include<unistd.h>
+
+int make_named_socket(int argc, char* argv[]) {
+	sock = make_named_socket(argv[1]);
+	unlink(sock);
+	return 0;
+}
+```
+
