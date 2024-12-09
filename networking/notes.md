@@ -21,3 +21,51 @@ Read about the socket more in detail [here](https://www.gnu.org/software/libc/ma
 
 ## Communication Styles
 
+GNU C library provides several different kinds of sockets, each with different characteristics.
+
+Following are the supported socket types -
+1. **SOCK_STREAM**: It operates over a communication with a particular remote socket and transmites data reliably as a stream of bytes.
+2. **SOCK_DGRAM**: Each time you write to a socket using this style, one packet is created. Since *SOCK_DGRAM* does not have any connection, you need to specify the recipient address every time you are sending the packet. Some packets may not reach the destination, some may go multiple times or some may go in wrong order.
+
+Read about the communication styles more in detail [here](https://www.gnu.org/software/libc/manual/html_node/Communication-Styles.html).
+
+
+## Socket Addresses
+
+The name of a socket is usually called the *address* of the socket.
+
+When socket is created using the `socket` function, they do not contain any address. If you want to bind an address to the socket, you have to use `bind` function.
+
+Usually this is needed when you are trying to create a server, and the clients need to connect with this server at the server address.
+
+### Socket Address Formats
+
+Depending on the namespace, the address formats will change, but `bind` and `getsockname` functions use the generic type `struct sockaddr*` to point to socket address.
+
+So, after using the proper namespace supported address format - you need to type cast the address format to `struct sockaddr*`.
+
+`struct sockaddr` type has 2 members - `short int sa_family` and `char sa_data[14]`.
+
+For more details on socket address formats, read [here](https://www.gnu.org/software/libc/manual/html_node/Address-Formats.html).
+
+### Setting the socket address using `bind`
+
+Use the `bind` function to assign an address to a socket. The prototype for `bind` function is in the header file `sys/socket.h`.
+
+**bind**: `int bind(int socket, struct sockaddr*, socklen_t length)`
+
+The return value is `0` when succeeds and `-1` when fails.
+
+For more details on socket address formats, read [here](https://www.gnu.org/software/libc/manual/html_node/Setting-Address.html).
+
+**`address already in use` error**: While you are binding your socket to an address, that address won't be available if you do not close the socket properly. We will discuss about that in detail later, but for now to get rid of the *address already in use* error, we can do the following to re-use the same address by setting the socket options using `setsockopt`.
+
+**setsockopt**: `int setsockopt(int socket, int level, int option_name, const void* option_name, socklen_t option_len)`
+
+```c
+int yes = 1;
+if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))==-1) {
+	perror("setsockopt");
+	return 1;
+}
+```

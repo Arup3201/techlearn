@@ -1,32 +1,44 @@
+// Example of local namespace socket
+
 #include<stdio.h>
-#include<stdint.h>
+#include<stddef.h>
+#include<errno.h>
+#include<stdlib.h>
+#include<string.h>
 #include<sys/socket.h>
 #include<sys/types.h>
-#include<netinet/in.h>
+#include<sys/un.h>
 
-int make_socket(uint16_t port) {
-	// Create a socket
-	int fd = socket(PF_INET, SOCK_STREAM, 0);
-	if(fd < 0) {
-		printf("failed to create socket\n");
+int make_named_socket(const char *filename) {
+	int sock = socket(PF_LOCAL, SOCK_DGRAM, 0);
+	if(sock < 0) {
+		perror("socket");
 		return 1;
 	}
 
-	// Bind the socket with an address                       
-        struct sockaddr_in name;
-        name.sin_family = AF_INET;
-        name.sin_port = htons(port);
-        name.sin_addr.s_addr = htonl(INADDR_ANY);
-        if(bind(fd, (struct sockaddr*) &name, sizeof(name)) < 0) {
-                printf("failed to bind server address\n");
-                return 1;
-        }
+	struct sockaddr_un name;
+	name.sun_family = AF_LOCAL;
+	strncpy(name.sun_path, filename, sizeof(name.sun_path));
+	name.sun_path[sizeof(name.sun_path) - 1] = '\0';
 
-	return fd;
+	size_t size;
+	size = SUN_LEN(&name); 
+	if(bind(sock, (struct sockaddr*)&name, size) < 0) {
+		perror("bind");
+		return 1;
+	}
+
+	return sock;
 }
 
-int main() {
-	int sock = make_socket(80);
-	printf("socket=%d\n", sock);
+int main(int argc, char* argv[]) {
+	const char* const socket_name = argv[1];
+	int sock = make_named_socket(socket_name);
+	printf("sock=%d\n", sock);
+	int close_status = shutdown(sock, 2);
+	if(close_status < 0) {
+		perror("shutdown");
+		return 1;
+	}
 	return 0;
 }
