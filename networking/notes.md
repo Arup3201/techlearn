@@ -85,3 +85,15 @@ int make_named_socket(int argc, char* argv[]) {
 }
 ```
 
+### Getting the name of the socket
+
+I can use `getsockname` to get the address of the socket.
+
+The definition for `getsockname` is defined as below -
+
+`int getsockname(int socket, struct sockaddr* addr, socklen_t* length_ptr)`
+
+It returns information about the address of the socket `socket` in the locations specified by the `addr` and `length_ptr` arguments.
+
+## Local Namespace
+

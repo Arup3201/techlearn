@@ -38,10 +38,28 @@ int make_named_socket(const char *filename) {
 	return sock;
 }
 
+void get_socket_name(int sockfd) {
+	struct sockaddr_un addr;
+	socklen_t length;
+
+	length = sizeof(addr);
+
+	if(getsockname(sockfd, (struct sockaddr*)&addr, &length) < 0) {
+		perror("getsockname");
+		return;
+	}
+	printf("address length: %u\n", length);
+}
+
+void send_recv_messages(int sockfd) {
+	return;
+}
+
 int main(int argc, char* argv[]) {
 	const char* const socket_name = argv[1];
 	int sock = make_named_socket(socket_name);
 	printf("sock=%d\n", sock);
-	unlink(socket_name);
+	get_socket_name(sock);
+	unlink(socket_name); // delete the file
 	return 0;
 }
