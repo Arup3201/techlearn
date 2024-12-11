@@ -49,6 +49,8 @@ void get_socket_name(int sockfd) {
 		return;
 	}
 	printf("address length: %u\n", length);
+	printf("address file: %s\n", addr.sun_path);
+	printf("socket family: %d\n", addr.sun_family);
 }
 
 void send_recv_messages(int sockfd) {
@@ -56,6 +58,10 @@ void send_recv_messages(int sockfd) {
 }
 
 int main(int argc, char* argv[]) {
+	if(argc < 2) {
+		printf("hint: ./server /tmp/a\n");
+		return 1;
+	}
 	const char* const socket_name = argv[1];
 	int sock = make_named_socket(socket_name);
 	printf("sock=%d\n", sock);
