@@ -97,3 +97,26 @@ It returns information about the address of the socket `socket` in the locations
 
 ## Local Namespace
 
+To create a socket in local namespace, you must use one of the following namespaces starting with `PF_`.
+
+- `PF_LOCAL`
+- `PF_UNIX`
+- `PF_FILE`
+
+The structure for specifying the socket address in this namespace -
+
+`struct sockaddr_un` - This the local namespace address structure.
+
+It has following members 
+- `short int sun_family`: This identified the address family or format of the socket address.
+- `char sun_path[108]`: This is the filename to use.
+
+I have to compute the *length* of the socket address in the local namespace as the sum of the size of the `sun_family` component and the string length (not the allocation size!) of the filename string.
+
+To compute the *length* of the socket address, I can simply use `SUN_LEN`.
+
+`int SUN_LEN(struct sockaddr_un* ptr)`
+
+To read more, refer this [documentation](https://www.gnu.org/software/libc/manual/html_node/Local-Namespace-Details.html).
+
+
