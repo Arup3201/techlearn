@@ -191,6 +191,173 @@ int main() {
 }
 ```
 
+## 16. Heaps
+
+Heap is a tree data structure that follows the following rules -
+
+1. The `parent` should be `>=` or (`<=`) to it's `children` depending on whether it is a `max heap` or `min heap`.
+2. The tree should form a complete binary tree i.e. any node is always be at a `h` or `h-1` level (where `h` is the height of the tree).
+
+Following are some examples of trees that are heap and not a heap depending on the above rules.
+
+![alt text](./Heaps/images/heaps-rules-example.png)
+
+Based on the property of heaps, they can classified bw 2 types -
+
+1. Min heap: The value of a node must be less than or equal to it's children's value.
+2. Max heap: The value of a node must be greated than or equal to it's children's value.
+
+Binary heaps are the ones where every parent has at most 2 children. In practice, binary heaps are enough to solve problems.
+
+Binary heaps can be represented with an array of values where the children are followed after the parent.
+
+As the heap is a complete binary tree array makes sense as there are no loss of space.
+
+### Create a heap data structure
+
+```cpp
+#include <iostream>
+
+using namespace std;
+
+class Heap
+{
+private:
+    int *array;
+    int capacity;  // Max size of heap possible
+    int count;     // Number of elements in heap
+    int heap_type; // min or max heap
+
+public:
+    Heap *createHeap(int capacity, int heap_type)
+    {
+        Heap *h = (Heap *)malloc(sizeof(Heap));
+        if (h == NULL)
+        {
+            cout << "Memory error" << "\n";
+            return;
+        }
+
+        h->array = (int *)malloc(sizeof(int) * capacity);
+        h->capacity = capacity;
+        h->count = 0;
+        h->heap_type = heap_type;
+
+        return h;
+    }
+};
+```
+
+The class `Heap` contains the following variables -
+
+1. `capacity`: Maximum size of the `Heap` data structure possible.
+2. `array`: dynamically created array memory of size `sizeof(int)*h->capacity`
+3. `count`: No of elements that are present in the heap right now
+4. `heap_type`: Type of the heap - min heap(0) or max heap(1)
+
+### Parent of a node
+
+To find a parent of a node, we can use the formula -
+$(i-1)/2$
+
+Where i is the index of the child node.
+
+Example: [7 5 6 1 4 3 2] is a max heap, and for the child node `6` which is at `index=2` the parent is present at `2-1/2 = 0`.
+
+```cpp
+int getParent(Heap *h, int i)
+{
+    if (i < 0 || i >= h->capacity)
+        return -1;
+
+    return (i - 1) / 2;
+}
+```
+
+### Child of a node
+
+To find the children of a node, we can use this formula -
+$left=2*i+1, right=2*i+2$
+
+Where i is the index of the child node.
+
+Example: [7 5 6 1 4 3 2] is a max heap, and for the node `6` which is at `index=2` the left child is present at `2*2+1 = 5` and right child at `2*2+2=6`.
+
+```cpp
+int getLeftChild(Heap *h, int i)
+{
+    if (i < 0 || i >= h->capacity)
+        return -1;
+
+    return i * 2 + 1;
+}
+
+int getRightChild(Heap *h, int i)
+{
+    if (i < 0 || i >= h->capacity)
+        return -1;
+
+    return i * 2 + 2;
+}
+```
+
+### Getting the maximum element
+
+For a max heap, getting the maximum element is a $O(1)$ complexity task as we just have to return the root element.
+
+```cpp
+int getMax(Heap *h)
+{
+    if (h->count == 0)
+        return -1;
+
+    return h->array[0];
+}
+```
+
+### Heapifying an element
+
+After inserting an element, it may not satisfy the heap property. In that case, we need to adjust the heap positions again to follow the heap rule. This process if called `heapifying`. To heapify, we need to find the maximum element(for max heap) of a node and replace the current node with that maximum node.
+
+We have to repeat this process for all nodes where the children are greater than the parent, finally we get a heap satisfying all rules.
+
+It is observed that if a node is not satisfying the property of a heap, then from that node to the root all nodes have the same problem.
+
+![alt text](max-heap-heapify.png)
+
+```cpp
+void heapify(Heap *h, int i)
+{
+    int left, right;
+    left = getLeftChild(h, i);
+    right = getRightChild(h, i);
+
+    // Finds the maximum out of all 3 - parent and two children
+    int max = i;
+    if (left > -1 && h->array[max] < h->array[left])
+    {
+        max = left;
+    }
+    if (right > -1 && h->array[max] < h->array[right])
+    {
+        max = right;
+    }
+
+    if (max != i)
+    {
+        // Swap the parent with the max child node
+        int temp = h->array[max];
+        h->array[max] = h->array[i];
+        h->array[i] = temp;
+
+        // heapify the next layer
+        heapify(h, max);
+    }
+}
+```
+
+Time complexity: $O(logn)$
+
 ## 17. Graphs
 
 ### Introduction to Graph
@@ -756,3 +923,202 @@ int BFSDis(vector<int> adj[], int V)
 3. Strongly connected components: Strongly connected components are solved using DFS. Mainly there are 2 algorithms kosaraju's algorithm and tarjan's algorithm.
 4. Maze problems and puzzles: Most puzzle problems where we have an initial state and we search through each solution in the tree leaf node whether that is a solution or not, for that we always prefer DFS as it gives better performance in finding the solution.
 5. Path finding: It is natural to use DFS when printing the path from source to destination as it always goes in the depth first manner and contains only the vertex that leads to the destination.
+
+### Shortest Path for an undirected graph
+
+Shortest path for a undirected graph is the path from source to destination vertex with least no of edges.
+
+![alt text](./Graph/images/undirected-graph-shortest-path-ex1.png)
+
+Shortest path: `[0 1 1 2]`
+
+![alt text](./Graph/images/indirected-graph-shortest-path-ex2.png)
+
+Shortes path: `[0 1 1 2 1 2]`
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <queue>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+void BFSModified(vector<int> adj[], int V, int source)
+{
+    vector<int> dists(V);
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+        visited[i] = false;
+
+    queue<int> q;
+    q.push(source);
+    visited[source] = true;
+    dists[source] = 0;
+
+    while (!q.empty())
+    {
+        int v = q.front();
+        q.pop();
+
+        for (auto u : adj[v])
+        {
+            if (!visited[u])
+            {
+                q.push(u);
+                dists[u] = dists[v] + 1;
+                visited[u] = true;
+            }
+        }
+    }
+
+    for (auto x : dists)
+    {
+        cout << x << " ";
+    }
+}
+
+int main()
+{
+    int V;
+    V = 4;
+    vector<int> adj[V];
+    addEdge(adj, 0, 1);
+    addEdge(adj, 0, 2);
+    addEdge(adj, 1, 2);
+    addEdge(adj, 1, 3);
+    addEdge(adj, 2, 3);
+
+    BFSModified(adj, V, 0);
+    return 0;
+}
+```
+
+Algorithm:
+
+1. Initialize `dist[V]` with `{INF, INF, ...}`
+2. `dist[source] = 0`
+3. Create a queue `q`
+4. Initialize the array `visited[V]` with `{false, false, ...}`
+5. q.push(source), `visited[source] = true`
+6. till q is not empty do the following -
+   1. Get the front vertex `v` in the queue.
+   2. Pop the first vertex `v` from queue.
+   3. Traverse all non-visited vertices reachable from `v`
+   4. Calculate the `dist[u]=dist[v]+1`, `visited[u]=true`, push `u` to `q`.
+7. Traverse the `dist` to get the shortest distance from `source`.
+
+Time complexity: $O(V+E)$
+
+### Detect cycle in an undirected graph
+
+Cyclic graph is when there exists one walk that begins and ends with the same vertex.
+
+Detecting cycle in an undirected graph is easier than doing so in a directed graph.
+
+We can use DFS to find cycles in an undirected graph by checking whether we can find any vertex whose adjacent is already visited or not.
+But wait, just this condition will give you wrong answer. Because even when there are 2 vertices (0-1) it will say it has cycle, because just like 1 is an adjacent of 0, 0 is also an adjacent of 1.
+
+So, we are keeping track of the parent vertex, and avoiding the case when the adjacent is the parent otherwise there is a cycle.
+
+![alt text](./Graph/images/undirected-graph-cycle.png)
+
+```cpp
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+void addEdge(vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+bool DFSRec(vector<int> adj[], bool visited[], int source, int parent)
+{
+    visited[source] = true;
+
+    for (auto u : adj[source])
+    {
+        if (!visited[u])
+        {
+            if (DFSRec(adj, visited, u, source))
+                return true;
+        }
+        else if (u != parent)
+            return true;
+    }
+
+    return false;
+}
+
+bool DFS(vector<int> adj[], int V, int source)
+{
+    bool visited[V];
+    for (int i = 0; i < V; i++)
+        visited[i] = false;
+
+    for (int i = 0; i < V; i++)
+    {
+        if (!visited[i])
+        {
+            if (DFSRec(adj, visited, i, -1))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int main()
+{
+    int V = 4;
+    vector<int> adj[V];
+    addEdge(adj, 0, 1);
+    addEdge(adj, 1, 2);
+    addEdge(adj, 2, 3);
+    addEdge(adj, 1, 3);
+
+    cout << (DFS(adj, V, 0) ? "Yes" : "No");
+
+    return 0;
+}
+```
+
+In the code, we start with vertex 0, move from 1 -> 2 -> 3. Then when we see the `visited[3]=true` we return `true` for `u=1` as it is not the parent.
+
+If there is no cycle in the graph, we return false at the end.
+
+```cpp
+ if (DFSRec(adj, visited, u, source))
+    return true;
+```
+
+This code interrupts the loop and directly return true if any cycle is found for any adjacent vertex.
+
+For cases where no such cycle is found, we move forward with other adjacent vertices to check the same.
+
+Don't do the following, as it may return false without visiting other adjacent vertices which is wrong.
+
+```cpp
+return DFSRec(adj, visited, u, source)
+```
+
+Time Complexity: $O(V+E)$
+
+### Detect cycle in a directed graph
+
+### Topological Sort
+
+Topological sorting is used when we need to schedule a series of tasks that needs to fulfill some pre-requisite.
+
+For example, before starting task B, you need to complete task A then only you can move with task B.
+
+This relationship can be represented with DAG or Directed Acyclic Graph. Directed as we need the relationship of which task come after which task, Acyclic as cycles will conflict the idea of prerequisites as one task cannot be completed without violating atleast one of the prerequisites.

@@ -1998,3 +1998,1695 @@ function handleSelectPlace(id) {
 ```
 
 It is ok to define this side effect inside the `handleSelectPlace` function because it does not create any infinite loop and also it makes sense to use it here, as we only add the place when user clicks on the image.
+
+### Another example of `useEffect`
+
+Let's look at another example of `useEffect`.
+
+Following is the code to `Modal` component, which exposes the `ref` to outside components so that they can open or close the modal using `open()` or `close()` method on the `useRef` value passed to this `Modal` component.
+
+```js
+import { forwardRef, useImperativeHandle, useRef } from "react";
+import { createPortal } from "react-dom";
+
+const Modal = forwardRef(function Modal({ children }, ref) {
+  const dialog = useRef();
+
+  useImperativeHandle(ref, () => {
+    return {
+      open: () => {
+        dialog.current.showModal();
+      },
+      close: () => {
+        dialog.current.close();
+      },
+    };
+  });
+
+  return createPortal(
+    <dialog className="modal" ref={dialog}>
+      {children}
+    </dialog>,
+    document.getElementById("modal")
+  );
+});
+
+export default Modal;
+```
+
+We can follow another approach for this.
+
+Instead of calling the `modal.current.open()` or `modal.current.close()`, we can use a state `modalIsOpen` to declare whether the modal should be open or not.
+
+Then, in the `Modal` component we can use,
+
+```js
+import { useRef } from "react";
+import { createPortal } from "react-dom";
+
+function Modal({ open, children }) {
+  const dialog = useRef();
+
+  return createPortal(
+    <dialog className="modal" ref={dialog} open={open}>
+      {children}
+    </dialog>,
+    document.getElementById("modal")
+  );
+}
+
+export default Modal;
+```
+
+But the problem with this approach is, we are not getting the backdrop in the modal, as we are directly setting the `open` prop for `dialog`
+
+We can think of an conditional approach where we open/close the modal depending on the `open` value.
+
+```js
+import { useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+
+function Modal({ open, children }) {
+  const dialog = useRef();
+
+  if (open) {
+    dialog.current.showModal();
+  } else {
+    dialog.current.close();
+  }
+
+  return createPortal(
+    <dialog className="modal" ref={dialog}>
+      {children}
+    </dialog>,
+    document.getElementById("modal")
+  );
+}
+
+export default Modal;
+```
+
+But this code fails!
+
+The reason is, at first when the component loads, `open` is `false` and the `else` statement run.
+
+BUT!
+
+`dialog` ref is still not attached to the `dialog` component, so it contains `null` value now. Calling `close()` will create an error.
+
+Here comes the `useEffect!
+
+The reason `useEffect` makes sense in this case, is it helps us synchronize the states or props of the component with the DOM API.
+
+Instead of directly setting the `open` prop, we can call the `showModal()` or `close()` on the `dialog` ref based on the value of the `open` prop coming to `Modal`.
+
+```js
+import { useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+
+function Modal({ open, children }) {
+  const dialog = useRef();
+
+  useEffect(() => {
+    if (open) {
+      dialog.current.showModal();
+    } else {
+      dialog.current.close();
+    }
+  }, [open]);
+
+  return createPortal(
+    <dialog className="modal" ref={dialog}>
+      {children}
+    </dialog>,
+    document.getElementById("modal")
+  );
+}
+
+export default Modal;
+```
+
+### Effect dependencies
+
+Any value that makes the component to render again, if used in the `useEffect` block is called effect dependency.
+
+Effect dependencies are mainly states/props because those are the values that make the component render.
+
+Objects that are built-in from the browser and refs are not considered dependencies as they do not make the component to render again.
+
+`useEffect` only considers the value as a dependency if it makes the component execute again, and why is that the case?
+
+The `useEffect` should execute again if the component renders again, which means if one of it's dependencies change.
+
+```js
+useEffect(() => {
+  if (open) {
+    dialog.current.showModal();
+  } else {
+    dialog.current.close();
+  }
+}, [open]);
+```
+
+If you kept the dependencies array `[]`, then the `useEffect` will never run when the `open` value changes.
+
+Which means that the modal will not show on the UI, as we are not running the `useEffect` code again.
+
+But if you include the `open` prop in the dependencies array, the `useEffect` will run whenever the `open` prop changes which will check whether to open the modal or not.
+
+### Another problem that useEffect can fix
+
+Let's assume that when you click on any of the selected places, you want to automatically remove the place after 3 seconds even if the yes is not pressed.
+
+To do that, you will use one of the brower functions `setTimeout` and pass a callback function as it's first argument and time in miliseconds as the second argument.
+
+```js
+export default function DeleteConfirmation({ onConfirm, onCancel }) {
+  console.log("TIMER SET");
+  setTimeout(() => {
+    onConfirm();
+  }, 3000);
+
+  return (
+    <div id="delete-confirmation">
+      <h2>Are you sure?</h2>
+      <p>Do you really want to remove this place?</p>
+      <div id="confirmation-actions">
+        <button onClick={onCancel} className="button-text">
+          No
+        </button>
+        <button onClick={onConfirm} className="button">
+          Yes
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+But this code has a problem - the `DeleteConfirmation` component is rendered on every app rendering, which means everytime the timer will be set and after 3 secs the timer will be out.
+
+So to avoid this issue, we can conditionally choose to display this component.
+
+```js
+import { useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+
+function Modal({ open, onClose, children }) {
+  // code...
+
+  return createPortal(
+    <dialog className="modal" ref={dialog} onClose={onClose}>
+      {open ? children : null}
+    </dialog>,
+    document.getElementById("modal")
+  );
+}
+
+export default Modal;
+```
+
+We are showing the `children` conditionally depending on whether the modal is open or not.
+
+But even doing that, we are stuck with one major issue, and that is - when you try to delete any place but press "No", still the place will be deleted.
+
+It is because the `setTimeout` is called when the `DeleteConfirmation` component renders.
+
+We can use `useEffect` to get out of this issue. As this `setTimeOut` is not doing anything to render the JSX code. But, why do we need `useEffect` here?
+Here are the following reasons we have been `useEffect` till now -
+
+1. We had a `dialog` ref that was not connected yet, and we wanted to use that ref to open and close modal, which is considered a side-effect.
+2. We used `useEffect` when we are using the location API to get the location and set the places according to their distance from current place. In this case it could cause infinite loop otherwise so we used `useEffect` to take care of the side-effect.
+
+Just to be clear, we do not need the `useEffect` to define the `setTimeout` as it does not create any infinite loop nor is this a situation with ref where we needed to connect first. We need the `useEffect` to make sure we clean the `setTimeout` when the `DeleteConfirmation` component is removed from the DOM.
+
+It is called clean-up function of `useEffect`. Clean-up function runs in 2 cases -
+
+1. When the `useEffect` code is run again. Before the `useEffect` runs again, the clean-up function runs.
+2. When the component dismounts from the DOM, which is the scenario here. So, before the component function is removed from the DOM.
+
+```js
+import { useEffect } from "react";
+
+export default function DeleteConfirmation({ onConfirm, onCancel }) {
+  useEffect(() => {
+    console.log("TIMER SET");
+    const timer = setTimeout(() => {
+      onConfirm();
+    }, 3000);
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <div id="delete-confirmation">
+      <h2>Are you sure?</h2>
+      <p>Do you really want to remove this place?</p>
+      <div id="confirmation-actions">
+        <button onClick={onCancel} className="button-text">
+          No
+        </button>
+        <button onClick={onConfirm} className="button">
+          Yes
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+Another important point to note - the cleanup function does not run before the first `useEffect` execution. It only runs before the subsequent `useEffect` executions and as mentioned after the component dismounts.
+
+### Why Objects and Functions should not be included in dependency array
+
+In Javascript, functions are also objects.
+
+If we assign the object with some value and create another object with the same value, try to check their equality, it will be `false`.
+
+Which means 2 objects with same value are not treated as equal.
+
+Now, in react whenever the `App` component is rendered, the object is reassigned and when `useEffect` checks the dependency array and sees that the object contains a new value (though the same), it will run the `useEffect` even though the object value did not change.
+
+```js
+useEffect(() => {
+  console.log("TIMER SET");
+  const timer = setTimeout(() => {
+    onConfirm();
+  }, 3000);
+
+  return () => {
+    console.log("TIMER CLEARED");
+    clearTimeout(timer);
+  };
+}, [onConfirm]);
+```
+
+But, in this example it will not cause infinite loop, as we are removing the `DeleteConfirmation` component when we confirm the deletion or keep it ideal for 3 secs.
+
+```js
+function handleRemovePlace() {
+  setPickedPlaces((prevPickedPlaces) =>
+    prevPickedPlaces.filter((place) => place.id !== selectedPlace.current)
+  );
+  const pickedIds = JSON.parse(localStorage.getItem("selectedPlaces")) || [];
+  const pickedPlaces = pickedIds.filter((id) => id !== selectedPlace.current);
+  localStorage.setItem("selectedPlaces", JSON.stringify([...pickedPlaces]));
+  setModalIsOpen(false); // Here setting the modalIsOpen to false, we are dismounting the `DeleteConfirmation` component
+}
+```
+
+But, if we remove this line, then an infinite loop will be created.
+
+There is a hook that solves this issue though.
+
+### useCallback hook
+
+`useCallback` hook creates a function that will not be changed when the `App` component is rendered again.
+
+It returns a function which stays in the store of react and only changes when any of the `useCallback` dependencies change.
+
+```js
+const handleRemovePlace = useCallback(function handleRemovePlace() {
+  setPickedPlaces((prevPickedPlaces) =>
+    prevPickedPlaces.filter((place) => place.id !== selectedPlace.current)
+  );
+  const pickedIds = JSON.parse(localStorage.getItem("selectedPlaces")) || [];
+  const pickedPlaces = pickedIds.filter((id) => id !== selectedPlace.current);
+  localStorage.setItem("selectedPlaces", JSON.stringify([...pickedPlaces]));
+  setModalIsOpen(false);
+}, []);
+```
+
+In this example, we do not need any dependencies in the dependency array as the function is, setting a state and using localstorage, which do not need any dependency.
+
+### Another example of using cleanup function
+
+Till now, what we have done shows the user a modal when they click on any place and if they don't do anything within 3 secs, the place will be deleted.
+
+But, the problem here is, user might not understand what happened...
+
+So to prevent that, we might want to show them a progress bar to show how much time is remaining.
+
+In HTML, we have a built-in element called `progress` to show a progress bar.
+
+This element takes 2 important props - `value` and `max`. `value` show show progress and `max` to let the browser decide the progress change based on the highest value.
+
+```js
+<progress value={remainingTime} max={TIMER} />
+```
+
+To know how much time is remaining, we use a state `remainingTime` set to `TIMER` which is `3s`.
+
+```js
+const [remainingTime, setRemainingTime] = useState(TIMER);
+```
+
+Then we use browser in-built function `setInterval` to update `remainingTime` by 10ms in every 10ms interval.
+
+```js
+setInterval(() => {
+  setRemainingTime((prevTime) => prevTime - 10);
+}, 10);
+```
+
+The `setInterval` runds the callback every 10ms, which renders the component again as we are setting a state `remainingTime`.
+
+But the problem here is, we are not clearing this interval when the modal is closed, which creates an infinite loop for the whole component.
+
+We already know the solution to this problem, defining the `setInterval` inside `useEffect` and cleaning the interval with a cleanup function.
+
+### useEffect optimizations
+
+As for the progress bar that you are seeing, we can optimize it a bit to reduce unnecessary computations and rendering of components.
+
+We can seperate the progress part inside a `ProgressBar` component, and do the remaining time calculation there to stop rendering all the components and doing all other computations.
+
+_ProgressBar.jsx_
+
+```js
+import { useState, useEffect } from "react";
+
+export function ProgressBar({ timer }) {
+  const [remainingTime, setRemainingTime] = useState(timer);
+
+  useEffect(() => {
+    console.log("INTERVAL");
+    const interval = setInterval(() => {
+      setRemainingTime((prevTime) => prevTime - 10);
+    }, 10);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  return <progress value={remainingTime} max={timer} />;
+}
+```
+
+_DeleteConfirmation.jsx_
+
+```js
+import { useEffect } from "react";
+import { ProgressBar } from "./ProgressBar.jsx";
+
+TIMER = 3000;
+
+export default function DeleteConfirmation({ onConfirm, onCancel }) {
+  // code...
+
+  return (
+    <div id="delete-confirmation">
+      // Code...
+      <ProgressBar timer={TIMER} />
+    </div>
+  );
+}
+```
+
+## Testing React Apps
+
+### What is "Testing"?
+
+We have been doing testing since we started writing react code, by looking at the browser and checking whether that is the result we wanted and revisiting the code again if necessary.
+
+This is manual testing. And it is very important as what you see will be what your user's also see. And it is important to optimize what users experience and check they don't face any issue in the process.
+
+But manual testing is error-prone, as they just test one part of the application and not the entire application after making a particular change in the code base. This is not a good thing as changing one component and building new features might break some other features/components that you may not manually test. Also it is very hard to check all possible scenarios and combinations.
+
+That is why there is another type of testing called automated testing, it is not a replacement for manual testing which is important. In automated testing, you write extra code that automatically tests your code.
+
+With automated testing, you test the individual building block of your app. But, that also allows you test every building block in your app and checks all combinations and scenarios for all other blocks along with the individual block.
+
+### Types of automated testing
+
+There are 3 types of automated testing -
+
+1. Unit Tests
+2. Integration Tests
+3. End-End(E2E) Tests
+
+**Unit Tests**
+
+Unit tests are the most important tests when doing automated tests as they test the individual building blocks that make up the application. It tests the blocks in isolations like testing some functions or testing some components which independently from the other components.
+
+Projects typically contain a lot of unit tests like dozens or hundreds sometimes.
+
+It is the most common/important kind of tests. The concept is, if individual units are working properly then the overall application should also work fine.
+
+**Integration Tests**
+
+Integration tests are to check some compoenents are working as expected with each other.
+
+You don't have as many intgration tests as you have unit tests, often times a couple of integration tests that are also part of unit tests.
+
+**End-End Tests**
+
+E2E tests are basically testing complete scenarios / user flows in your app, as the user might experience when going through the application.
+
+It is replicating the entire user experience when he is trying to do something with the application. It is similar to manual testing as it also tries to optimize the user experience overall.
+
+It is important but also be done by manual testing.
+
+### What and how to test?
+
+It is important to be clear before testing anything to know "what" you are testing and "how" you are going to test it.
+
+As mentioned, for unit tests you will be testing the smallest building blocks that make up your app. As smallest building blocks has fewer scenarios when they fail or success than larger blocks where there could a large no of scenarios where they may fail or succeed.
+
+When it comes to "how", you have to test success and error cases for every unit test, and also rare (but possible) scenarios and their results.
+
+## Required tools and set up
+
+When doing unit testing, you need to have some extra set up to do the testing.
+
+Typically there are 2 things involved when testing a react app -
+
+- Tool to run the tests and assert the results
+- Tool for "simulating" (rendering) the React app / component
+
+For the first part, we have `Jest` (Not the only one but a popular choice) and for the second part, we have `React Testing Library`.
+
+Fortunately, these 2 tools come along with any react app that is built using "creat-react-app". If you look at the `package.json` file of any new react project, you will see these tools in the `dependencies`.
+
+```js
+{
+  ...
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.11.6",
+    "@testing-library/react": "^11.2.2",
+    "@testing-library/user-event": "^12.5.0",
+    ...
+  },
+  ...
+}
+```
+
+## Running tests in React
+
+Normally the default setup of the react app comes with `App.test.js` which is the file where all tests are written, and then `setUpTests.js` which set ups the whole testing environment.
+
+The setup file should be as it is, what we need to look at is the `App.test.js` file which contains the tests.
+
+**App.test.js**
+
+```js
+import { render, screen } from "@testing-library/react";
+import App from "./App";
+
+test("renders learn react link", () => {
+  render(<App />);
+  const linkElement = screen.getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
+});
+```
+
+We are writing the tests inside the `test` function which takes the name of the test and an anonymous function that explains what the test is.
+
+We are using `render` function to render the `<App />` component and then using `screen` to get a text having `learn react` string (case insensitive - i) searching by regex expression.
+
+Simply, we are tring to check whether the string `learn react` exists in the application interface or not which we can see in the `App.jsx` file.
+
+```js
+import logo from "./logo.svg";
+import "./App.css";
+
+function App() {
+  return (
+    <div className="App">
+      <header className="App-header">
+        <img src={logo} className="App-logo" alt="logo" />
+        <p>
+          Edit <code>src/App.js</code> and save to reload.
+        </p>
+        <a
+          className="App-link"
+          href="https://reactjs.org"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn React
+        </a>
+      </header>
+    </div>
+  );
+}
+
+export default App;
+```
+
+To run the tests, you need to go to terminal and write `npm test`.
+
+After this you will see a result like the following-
+
+```sh
+ PASS  src/App.test.js
+  √ renders learn react link (43 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        2.83 s
+Ran all test suites related to changed files.
+```
+
+## Writing your own tests
+
+Let's create a `Greeting` component which has the following code -
+
+```js
+const Greeting = () => {
+  return (
+    <div>
+      <h2>Hello World!</h2>
+      <p>Welcome to this React Learning Resource.</p>
+    </div>
+  );
+};
+
+export default Greeting;
+```
+
+To test the above component, you need to write a file that contains the test code. You can write this testing code at `App.test.js` also, but it recommended to keep the test code as close as possible to the blocks you are testing.
+
+So, we will create a `Greeting.test.js` file beside the `Greeting.jsx` file. The test file will contain the following code -
+
+```js
+import { render, screen } from "@testing-library/react";
+import Greeting from "./Greeting.jsx";
+
+test("rendering hello world in greeting component", () => {
+  // Arrange
+  render(<Greeting />);
+
+  // Act
+  // ...
+
+  // Assert
+  const element = screen.getByText("Hello World!");
+  expect(element).toBeInTheDocument();
+});
+```
+
+The test is checking whether the sentence `Hello World!` is present in the "virtual DOM" (coming from `render` function).
+
+Since it is part of the component, it will pass the test.
+
+```sh
+ PASS  src/components/Greeting.test.js
+  √ rendering hello world in greeting component (29 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        2.587 s, estimated 3 s
+Ran all test suites related to changed files.
+```
+
+To write any tests, you need to write three "A"s -
+
+1. Arrange: Set up the test data, test conditions and test environment
+2. Act: Run logic that should be tested(e.g. execute function)
+3. Assert: Compare execution results with the expected results
+
+## Working with Forms and User Inputs
+
+### What's so difficult about forms?
+
+When talking about forms, we talk about the in-built HTML `form` element that contains `input`s and `label`s inside them.
+
+But, what the user wants with the form?
+
+1. Form Submission: You want to submit the form data to somewhere so that you can do something with them. You might want to save them to database or process them in some way.
+2. Input Validation: You wanna validate the input values of the form, and see whether they follow the rules specified for each field. You have to show errors if incorrect data has been provided.
+
+Handling submissions can be relatively simplere, as we can use `states` (two-way binding), `refs`, or via `FormData` provided by the in-built browser.
+
+The difficult part is validating the fields in the form, as providing a good user experience could be difficult -
+
+1. You may validate on every keystroke - but the error may be shown too early.
+2. You may validate when lost focus - but the error may be shown too late.
+3. You can validate the form after the submission - but again the error is shown late.
+
+### Handling Form Submission
+
+When submitting the form, we need to keep in mind some factors.
+
+The buttons inside form has by defauly `type=submit`, which means when they are clicked, the form will be submitted and the page will be reloaded. When form is submitted, their data goes to the server running on the same port, in this case react server.
+
+This is not a server that has any code to handle submissions, as it is just a frontend code. So, many times you would want to prevent the form from submitting.
+
+```js
+export default function Login() {
+  function handleFormSubmit(event) {
+    event.preventDefault();
+    console.log("Submitted!");
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <div className="control no-margin">
+          <label htmlFor="email">Email</label>
+          <input id="email" type="email" name="email" />
+        </div>
+
+        <div className="control no-margin">
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" name="password" />
+        </div>
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+In case of form, the best way to handle submit button clicks is to add the event handler at `form` element by setting the `onSubmit` property with the handler function.
+
+This way, you get access to `event` which has `preventDefault()` method to stop the page reloading when clicked any `type=submit` button inside the form.
+
+Often you would like to send the data of this form, to the standalone backend. For that we need to get the form data.
+
+```js
+import { useState } from "react";
+
+export default function Login() {
+  const [enteredValues, setEnteredValues] = useState({
+    email: "",
+    password: "",
+  });
+
+  function handleInputChange(identifier, value) {
+    setEnteredValues((prevValues) => ({ ...prevValues, [identifier]: value }));
+  }
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+    console.log(enteredValues);
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <div className="control no-margin">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            onChange={(e) => handleInputChange("email", e.target.value)}
+            value={enteredValues.email}
+          />
+        </div>
+
+        <div className="control no-margin">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            onChange={(e) => handleInputChange("password", e.target.value)}
+            value={enteredValues.password}
+          />
+        </div>
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+The first option is definitely to use `useState` from react. Though you might want to create only one state as managing lots of states for each input field could be very tedious.
+
+So, you will create a state containing an object `{email: "", password: ""}` that has the field ids as it's property and thier initial value is empty.
+
+Then attach the handler to `onChange` property of each input field and call the handler with the `indentifier` and `value` (coming from `e.target.value`).
+
+Also set the `value` prop of each input field to show the updated value of each input field.
+
+Another solution could be to use `refs`.
+
+```js
+import { useRef } from "react";
+
+export default function Login() {
+  const email = useRef();
+  const password = useRef();
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+
+    const enteredEmail = email.current.value;
+    const enteredPassword = password.current.value;
+
+    console.log(enteredEmail, enteredPassword);
+
+    email.current.value = "";
+    password.current.value = "";
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <div className="control no-margin">
+          <label htmlFor="email">Email</label>
+          <input id="email" type="email" name="email" ref={email} />
+        </div>
+
+        <div className="control no-margin">
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" name="password" ref={password} />
+        </div>
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+First, we can initialize the refs for email and password fields as `email` & `password`, then we can pass this refs to the respective input fields as `ref` prop value.
+
+Now, a connection has been established so we can directly get the values of the input fields from this `ref`s.
+
+Like the example, you can use `email.current.value` or `password.current.value` to get the value of the input fields. Every input field has the `value` prop so we can access that in the ref.
+
+At the end, you also need to reset the values of the form fields, by setting the ref values to empty string.
+
+The drawbacks of this method is -
+
+1. We are directly manipulating the DOM elements by setting their values.
+2. It would become a very lengthy work if there were more form elements.
+
+As an alternate way, we are going to discuss about another method `FormData`, an in-built method from browser to get the form data in an easy way.
+
+```js
+export default function Signup() {
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const fd = new FormData(event.target);
+    const enteredFormData = Object.fromEntries(fd.entries());
+    console.log(enteredFormData);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Welcome on board!</h2>
+      <p>We just need a little bit of data from you to get you started 🚀</p>
+
+      <div className="control">
+        <label htmlFor="email">Email</label>
+        <input id="email" type="email" name="email" />
+      </div>
+
+      <div className="control-row">
+        <div className="control">
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" name="password" />
+        </div>
+
+        <div className="control">
+          <label htmlFor="confirm-password">Confirm Password</label>
+          <input
+            id="confirm-password"
+            type="password"
+            name="confirm-password"
+          />
+        </div>
+      </div>
+
+      <hr />
+
+      <div className="control-row">
+        <div className="control">
+          <label htmlFor="first-name">First Name</label>
+          <input type="text" id="first-name" name="first-name" />
+        </div>
+
+        <div className="control">
+          <label htmlFor="last-name">Last Name</label>
+          <input type="text" id="last-name" name="last-name" />
+        </div>
+      </div>
+
+      <div className="control">
+        <label htmlFor="phone">What best describes your role?</label>
+        <select id="role" name="role">
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+          <option value="employee">Employee</option>
+          <option value="founder">Founder</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <fieldset>
+        <legend>How did you find us?</legend>
+        <div className="control">
+          <input
+            type="checkbox"
+            id="google"
+            name="acquisition"
+            value="google"
+          />
+          <label htmlFor="google">Google</label>
+        </div>
+
+        <div className="control">
+          <input
+            type="checkbox"
+            id="friend"
+            name="acquisition"
+            value="friend"
+          />
+          <label htmlFor="friend">Referred by friend</label>
+        </div>
+
+        <div className="control">
+          <input type="checkbox" id="other" name="acquisition" value="other" />
+          <label htmlFor="other">Other</label>
+        </div>
+      </fieldset>
+
+      <div className="control">
+        <label htmlFor="terms-and-conditions">
+          <input type="checkbox" id="terms-and-conditions" name="terms" />I
+          agree to the terms and conditions
+        </label>
+      </div>
+
+      <p className="form-actions">
+        <button type="reset" className="button button-flat">
+          Reset
+        </button>
+        <button type="submit" className="button">
+          Sign up
+        </button>
+      </p>
+    </form>
+  );
+}
+```
+
+As with this form, there are multiple fields present in the `Signup` form. Using `ref`s or `state`s could become tedious task. Instead it would be better to use `FormData` objects to get access to the form data entered in the form.
+
+Note, the `FormData()` takes the form value as an argument, here that is `event.target`.
+
+We can create a `FormData` instance `fd` and use the `entries()` to get `FormData Iterator`. We can access the values of this iterator by using `Object.fromEntries()` method.
+
+Output:
+
+```sh
+{
+    "email": "test@example.com",
+    "password": "2812918",
+    "confirm-password": "128918291",
+    "first-name": "Arup",
+    "last-name": "Jana",
+    "role": "student",
+    "terms": "on"
+}
+```
+
+But, this won't give us some of the input field values that are inside another field, e.g. it does not give the input field values inside `fieldset`.
+
+To get the field values inside the `fieldset`, we need to target them by their `name` prop and get all of their values by using `fd.getAll()`.
+
+`getAll` takes the `name` of the fields as the argument.
+
+```js
+export default function Signup() {
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const fd = new FormData(event.target);
+
+    // This misses the inner input field values (inside fieldset)
+    const enteredFormData = Object.fromEntries(fd.entries());
+
+    // Explicitely getting all values as an array
+    const acquisitionData = fd.getAll("acquisition");
+    enteredFormData.acquisition = acquisitionData;
+
+    console.log(enteredFormData);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Welcome on board!</h2>
+      <p>We just need a little bit of data from you to get you started 🚀</p>
+
+      <div className="control">
+        <label htmlFor="email">Email</label>
+        <input id="email" type="email" name="email" />
+      </div>
+
+      <div className="control-row">
+        <div className="control">
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" name="password" />
+        </div>
+
+        <div className="control">
+          <label htmlFor="confirm-password">Confirm Password</label>
+          <input
+            id="confirm-password"
+            type="password"
+            name="confirm-password"
+          />
+        </div>
+      </div>
+
+      <hr />
+
+      <div className="control-row">
+        <div className="control">
+          <label htmlFor="first-name">First Name</label>
+          <input type="text" id="first-name" name="first-name" />
+        </div>
+
+        <div className="control">
+          <label htmlFor="last-name">Last Name</label>
+          <input type="text" id="last-name" name="last-name" />
+        </div>
+      </div>
+
+      <div className="control">
+        <label htmlFor="phone">What best describes your role?</label>
+        <select id="role" name="role">
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+          <option value="employee">Employee</option>
+          <option value="founder">Founder</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <fieldset>
+        <legend>How did you find us?</legend>
+        <div className="control">
+          <input
+            type="checkbox"
+            id="google"
+            name="acquisition"
+            value="google"
+          />
+          <label htmlFor="google">Google</label>
+        </div>
+
+        <div className="control">
+          <input
+            type="checkbox"
+            id="friend"
+            name="acquisition"
+            value="friend"
+          />
+          <label htmlFor="friend">Referred by friend</label>
+        </div>
+
+        <div className="control">
+          <input type="checkbox" id="other" name="acquisition" value="other" />
+          <label htmlFor="other">Other</label>
+        </div>
+      </fieldset>
+
+      <div className="control">
+        <label htmlFor="terms-and-conditions">
+          <input type="checkbox" id="terms-and-conditions" name="terms" />I
+          agree to the terms and conditions
+        </label>
+      </div>
+
+      <p className="form-actions">
+        <button type="reset" className="button button-flat">
+          Reset
+        </button>
+        <button type="submit" className="button">
+          Sign up
+        </button>
+      </p>
+    </form>
+  );
+}
+```
+
+Before we dive into validating the form inputs, we must understand how to reset the form manually.
+
+We can use a button prop `type=reset` to set the button as a reset button, and whenever that button is clicked we will be able to reset the form.
+
+If we are using states then we can use the initial values of the state to reset the values-
+
+```js
+setEnteredValues({
+  email: "",
+  password: "",
+});
+```
+
+or if we are using refs, then we can directly set the values as empty string-
+
+```js
+email.current.value = "";
+password.current.value = "";
+```
+
+But we wanna manually reset the form with code, then we can do that by -
+
+```js
+function handleSubmit(event) {
+  // ...
+
+  event.target.reset();
+}
+```
+
+### Validating form inputs
+
+There are multiple ways to validate the form inputs, the first method would be to validate the fields on every keystroke.
+
+For that, we need to follow the state approach to make sure that we have access to the current value of input as they are changing.
+
+For example, we can compute the validity of email based on the current state value of the email, and then show an error message if it is invalid.
+
+```js
+import { useState } from "react";
+
+export default function Login() {
+  const [enteredValues, setEnteredValues] = useState({
+    email: "",
+    password: "",
+  });
+
+  const emailIsInvalid = !enteredValues.email.includes("@");
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+
+    console.log(enteredValues);
+  }
+
+  function handleInputChange(value, id) {
+    setEnteredValues((prev) => ({ ...prev, [id]: value }));
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <div className="control no-margin">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            value={enteredValues.email}
+            onChange={(e) => handleInputChange(e.target.value, "email")}
+          />
+          <div className="control-error">
+            {emailIsInvalid && <p>Please enter a valid email address.</p>}
+          </div>
+        </div>
+
+        <div className="control no-margin">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            value={enteredValues.password}
+            onChange={(e) => handleInputChange(e.target.value, "password")}
+          />
+        </div>
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+Here, you can see we used one computed variable `emailIsInvalid` by searching whether `@` is present.
+
+But the problem is even before user puts something, the error is shown.
+
+So to resolve that issue, we can change the condition a little bit with the following -
+
+```js
+const emailIsInvalid =
+  enteredValues.email !== "" && !enteredValues.email.includes("@");
+```
+
+This will handle the problem, but there are still other problems -
+
+1. After putting something, if the user cleans the field, they don't see any error message. Because we are always ignoring the empty field scenario with the above condition.
+2. Users do not get the opportunity to put the field properly, and they are shown error message e.g. `test...` which is not good.
+
+For the mentioned reasons, we need to make sure to show the error after user has properly filled the field.
+
+You can validate user input when the input losses focus (`blur`).
+
+We can pass method to `onBlur` prop to listen to blur event so that whenever the input losses focus, we check whether the email is valid or not, and depending on the validity we may show them the error message.
+
+```js
+import { useState } from "react";
+
+export default function Login() {
+  const [enteredValues, setEnteredValues] = useState({
+    email: "",
+    password: "",
+  });
+  // whether input fields are blurred after being edited
+  const [didEdit, setDidEdit] = useState({
+    email: false,
+    password: false,
+  });
+
+  const emailIsInvalid = didEdit.email && !enteredValues.email.includes("@");
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+
+    console.log(enteredValues);
+  }
+
+  function handleInputChange(value, id) {
+    setEnteredValues((prev) => ({ ...prev, [id]: value }));
+
+    // Remove the error message when user is typing
+    setDidEdit((prevEdit) => ({
+      ...prevEdit,
+      [id]: false,
+    }));
+  }
+
+  function handleInputBlur(id) {
+    setDidEdit((prevEdit) => ({
+      ...prevEdit,
+      [id]: true,
+    }));
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <div className="control no-margin">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            value={enteredValues.email}
+            onBlur={() => handleInputBlur("email")}
+            onChange={(e) => handleInputChange(e.target.value, "email")}
+          />
+          <div className="control-error">
+            {emailIsInvalid && <p>Please enter a valid email address.</p>}
+          </div>
+        </div>
+
+        <div className="control no-margin">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            value={enteredValues.password}
+            onChange={(e) => handleInputChange(e.target.value, "password")}
+          />
+        </div>
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+This is a better solution, make sure you add the following code snippet -
+
+```js
+// Remove the error message when user is typing
+setDidEdit((prevEdit) => ({
+  ...prevEdit,
+  [id]: false,
+}));
+```
+
+This resolves the following issue -
+
+The error stays for too long. Means when the user start typing, the error is still there unless the user provides the correct syntax of email.
+
+To avoid that we make sure when user start typing in the input, they do not get the error message until the input loss focus.
+
+We have another method of showing the error at the time of submitting.
+
+```js
+import { useRef, useState } from "react";
+
+export default function Login() {
+  const [emailIsInvalid, setEmailIsInvalid] = useState(false);
+
+  const email = useRef();
+  const password = useRef();
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+
+    const enteredEmail = email.current.value;
+    const enteredPassword = password.current.value;
+
+    const emailIsValid = enteredEmail.includes("@");
+    if (!emailIsValid) {
+      setEmailIsInvalid(true);
+      return;
+    }
+
+    setEmailIsInvalid(false);
+    console.log(enteredEmail, enteredPassword);
+
+    email.current.value = "";
+    password.current.value = "";
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <div className="control no-margin">
+          <label htmlFor="email">Email</label>
+          <input id="email" type="email" name="email" ref={email} />
+          <div className="control-error">
+            {emailIsInvalid && <p>Please enter a valid email address.</p>}
+          </div>
+        </div>
+
+        <div className="control no-margin">
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" name="password" ref={password} />
+        </div>
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+Validate the values in the input field when they submit and return if the validation fails. Otherwise, proceed with any HTTP request.
+
+```js
+const emailIsValid = enteredEmail.includes("@");
+if (!emailIsValid) {
+  setEmailIsInvalid(true);
+  return;
+}
+
+setEmailIsInvalid(false);
+```
+
+Usually when you implement the validation on lose focus, you also have to implement this validation method before submitting so that wrong data is not passed to the server.
+
+We can also use the built-in validation provided by the browser to validate the input fields -
+
+- `required`: Specifies whether a form field needs to be filled in before the form can be submitted.
+- `minlength` and `maxlength`: Specifies the minimum and maximum length of textual data (strings).
+- `min`, `max`, and `step`: Specifies the minimum and maximum values of numerical input types, and the increment, or step, for values, starting from the minimum.
+- `type`: Specifies whether the data needs to be a number, an email address, or some other specific preset type.
+- `pattern`: Specifies a regular expression that defines a pattern the entered data needs to follow.
+
+For more information, you can refer to [this link](https://developer.mozilla.org/en-US/docs/Learn/Forms/Form_validation).
+
+You might sometime want to combine the built-in and custom validation for advanced use cases.
+
+For example, you need to validate whether the `confirm-password` is same as the `password`.
+
+Then along with the built-in validation you have to also add custom check for matching the `password` and `confirm-password`.
+
+```js
+import { useState } from "react";
+
+export default function Signup() {
+  const [passwordNotMatched, setPasswordNotMatched] = useState();
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const fd = new FormData(event.target);
+    // This misses the inner input field values (inside fieldset)
+    const enteredFormData = Object.fromEntries(fd.entries());
+
+    // Explicitely getting all values as an array
+    const acquisitionData = fd.getAll("acquisition");
+    enteredFormData.acquisition = acquisitionData;
+
+    if (enteredFormData.password !== enteredFormData["confirm-password"]) {
+      setPasswordNotMatched(true);
+      return;
+    }
+
+    console.log(enteredFormData);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2>Welcome on board!</h2>
+      <p>We just need a little bit of data from you to get you started 🚀</p>
+
+      <div className="control">
+        <label htmlFor="email">Email</label>
+        <input id="email" type="email" name="email" required />
+      </div>
+
+      <div className="control-row">
+        <div className="control">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            required
+            minLength={8}
+          />
+        </div>
+
+        <div className="control">
+          <label htmlFor="confirm-password">Confirm Password</label>
+          <input
+            id="confirm-password"
+            type="password"
+            name="confirm-password"
+            required
+          />
+          <div className="control-error">
+            {passwordNotMatched && <p>Password does not match.</p>}
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <div className="control-row">
+        <div className="control">
+          <label htmlFor="first-name">First Name</label>
+          <input type="text" id="first-name" name="first-name" required />
+        </div>
+
+        <div className="control">
+          <label htmlFor="last-name">Last Name</label>
+          <input type="text" id="last-name" name="last-name" required />
+        </div>
+      </div>
+
+      <div className="control">
+        <label htmlFor="phone">What best describes your role?</label>
+        <select id="role" name="role" required>
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+          <option value="employee">Employee</option>
+          <option value="founder">Founder</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <fieldset>
+        <legend>How did you find us?</legend>
+        <div className="control">
+          <input
+            type="checkbox"
+            id="google"
+            name="acquisition"
+            value="google"
+          />
+          <label htmlFor="google">Google</label>
+        </div>
+
+        <div className="control">
+          <input
+            type="checkbox"
+            id="friend"
+            name="acquisition"
+            value="friend"
+          />
+          <label htmlFor="friend">Referred by friend</label>
+        </div>
+
+        <div className="control">
+          <input type="checkbox" id="other" name="acquisition" value="other" />
+          <label htmlFor="other">Other</label>
+        </div>
+      </fieldset>
+
+      <div className="control">
+        <label htmlFor="terms-and-conditions">
+          <input
+            type="checkbox"
+            id="terms-and-conditions"
+            name="terms"
+            required
+          />
+          I agree to the terms and conditions
+        </label>
+      </div>
+
+      <p className="form-actions">
+        <button type="reset" className="button button-flat">
+          Reset
+        </button>
+        <button type="submit" className="button">
+          Sign up
+        </button>
+      </p>
+    </form>
+  );
+}
+```
+
+### Making input and validation re-usable
+
+And for this example, we have some repeatetive code that could be moved to a seperate component like `Input`.
+
+_Input.jsx_
+
+```js
+export default function Input({ label, id, error, ...props }) {
+  return (
+    <div className="control no-margin">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} {...props} />
+      <div className="control-error">{error && <p>{error}</p>}</div>
+    </div>
+  );
+}
+```
+
+We can also outsource the validation logics for email and password.
+
+_utils/validation.js_
+
+```js
+export function isEmail(value) {
+  return value.includes("@");
+}
+
+export function isNotEmpty(value) {
+  return value.trim() !== "";
+}
+
+export function hasMinLength(value, minLength) {
+  return value.length >= minLength;
+}
+
+export function isEqualsToOtherValue(value, otherValue) {
+  return value === otherValue;
+}
+```
+
+After the changes, the `StatefulLogin.jsx` looks like this -
+
+```jsx
+import { useState } from "react";
+import Input from "./Input.jsx";
+import {
+  isEmail,
+  isNotEmpty,
+  hasMinLength,
+  isEqualsToOtherValue,
+} from "../util/validation.js";
+
+export default function Login() {
+  const [enteredValues, setEnteredValues] = useState({
+    email: "",
+    password: "",
+  });
+  // whether input fields are blurred after being edited
+  const [didEdit, setDidEdit] = useState({
+    email: false,
+    password: false,
+  });
+
+  const emailIsInvalid =
+    didEdit.email &&
+    !isEmail(enteredValues.email) &&
+    !isNotEmpty(enteredValues.email);
+  const passwordIsInvalid =
+    didEdit.password && !hasMinLength(enteredValues.password, 6);
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+
+    console.log(enteredValues);
+  }
+
+  function handleInputChange(value, id) {
+    setEnteredValues((prev) => ({ ...prev, [id]: value }));
+    setDidEdit((prevEdit) => ({
+      ...prevEdit,
+      [id]: false,
+    }));
+  }
+
+  function handleInputBlur(id) {
+    setDidEdit((prevEdit) => ({
+      ...prevEdit,
+      [id]: true,
+    }));
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit}>
+      <h2>Login</h2>
+
+      <div className="control-row">
+        <Input
+          label="Email"
+          id="email"
+          type="email"
+          name="email"
+          value={enteredValues.email}
+          onBlur={() => handleInputBlur("email")}
+          onChange={(e) => handleInputChange(e.target.value, "email")}
+          error={emailIsInvalid && "Please enter a valid email."}
+        />
+
+        <Input
+          label="Password"
+          id="password"
+          type="password"
+          name="password"
+          value={enteredValues.password}
+          onBlur={() => handleInputBlur("password")}
+          onChange={(e) => handleInputChange(e.target.value, "password")}
+          error={passwordIsInvalid && "Please enter a valid password."}
+        />
+      </div>
+
+      <p className="form-actions">
+        <button className="button button-flat">Reset</button>
+        <button className="button">Login</button>
+      </p>
+    </form>
+  );
+}
+```
+
+## Debugging React Apps
+
+Debugging React apps is an essential part of development as it is natural to get errors when building applications.
+
+While React error messages could be daunting, they are also very much clear on where to look for the error.
+
+E.g. in this message, you can clearly see that the error is coming from the line number 8 and in character 16
+
+![Error message](./images/error.png)
+
+which appears to be this line -
+
+```js
+export default function Results({ input }) {
+  const results = [];
+  calculateInvestmentResults(input, results);
+  const initialInvestment =
+->  results[0].valueEndOfYear -
+    results[0].interest -
+    results[0].annualInvestment;
+
+    // ...
+}
+
+```
+
+It seems that `results[0]` is `undefined`, which can happen if the duration is less than 1.
+
+```js
+export function calculateInvestmentResults(
+  { initialInvestment, annualInvestment, expectedReturn, duration },
+  results
+) {
+  let investmentValue = initialInvestment;
+
+  for (let i = 0; i < duration; i++) {
+    const interestEarnedInYear = investmentValue * (expectedReturn / 100);
+    investmentValue += interestEarnedInYear + annualInvestment;
+    results.push({
+      year: i + 1, // year identifier
+      interest: interestEarnedInYear, // the amount of interest earned in this year
+      valueEndOfYear: investmentValue, // investment value at end of year
+      annualInvestment: annualInvestment, // investment added in this year
+    });
+  }
+}
+```
+
+Now, we know where the problem can come from. So, to make sure that if `results` is empty we return something else, we can do something like the following -
+
+```js
+if (results.length === 0) {
+  return <p className="center">Invalid input, please put a valid duration.</p>;
+}
+
+const initialInvestment =
+  results[0].valueEndOfYear - results[0].interest - results[0].annualInvestment;
+```
+
+To check logical errors, we have to first think about from where the error could be coming.
+
+As we understand the problem better, we can add some breakpoints in the code in the browser. Breakpoints will stop the execution when that line is going to be executed.
+
+We also get buttons like `next step`, `move into block` and `move out of block`.
+
+Another way to debug your application is by using react `StrictMode`. In this mode, every component is rendered twice which sometimes help you catch issues that might occur due to component re-rendering which won't be immediately caught at first.
