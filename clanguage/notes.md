@@ -156,3 +156,35 @@ int main(int argc, char* argv[]) {
 	int port = atoi(argv[2]);
 }
 ```
+
+## Build a static library
+
+First create `.h` files which contain a bunch of structures, enums and function declarations. Then create `.c` files that implements each functions declared in the `.h` file.
+
+Lets say I am creating a library header `mylib.h`, which has corresponding `mylib.c`, which implements the `hello` function declared in the header.
+
+After that we have to compile the `.c` files -
+
+```
+gcc -c *.c
+```
+
+This will compile all the `.c` file of the library folder `lib`.
+
+After you got the object files `.o`, we can store all of those object files in an archieve `.a` file.
+
+```
+ar -rc libmy.a *.o
+```
+
+Make sure to use `lib` before your library archieve name in this case `libmy.a`.
+
+After this, you can link and compile your file with this library using the following command -
+
+```
+gcc main.c -L./lib -lmy -o main
+```
+
+You can see we are linking the library with `-L` and then also passing the path where we will find the `.h` file. Using the `-lmy` because the archieve name is `libmy`, that is why giving `lib` in the name is important to make it work.
+
+Also make sure you put your file that you want to compile before the `-L` statement otherwise it will give you `reference error`.
