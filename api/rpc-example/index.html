@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RPC Example - JSON-RPC</title>
+  </head>
+  <body>
+    <h1 id="result"></h1>
+  </body>
+  <script>
+    async function addNumbers(a, b) {
+      const response = await fetch("http://localhost:3000", {
+        method: "POST",
+
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          params: [a, b],
+          method: "addNumbers",
+          id: 1,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+      // {
+      //  "jsonrpc": "2.0",
+      //  "id": 1,
+      //  "result": 5
+      //  }
+      console.log(result);
+      return result.result;
+    }
+
+    (async () => {
+      const result = await addNumbers(2, 3);
+      const resultElm = document.getElementById("result");
+      resultElm.innerText = result;
+    })();
+  </script>
+</html>

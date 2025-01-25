@@ -37,13 +37,27 @@ But, there are 2 factors that you will hear frequently when going through the so
 - Inplace - sorting is performed on the original array or new sorted array is returned.
 - Stable - Same values are ordered in the exact previous order or not.
 
-## Insertion Sort
+### Insertion Sort
 
 Insertion sort is a stable sort and an inplace algorithm that changes the original array without returning any sorted array.
 
 The best way to describe this algorithm is by card shifting. When you have cards in your hand and you have some way to know which comes before the other one. You go through the cards from left to right. When you encounter a card that is smaller than the previous card, you start shifting the bigger cards to the right of this smaller card untill you find a card that is same or less than the smaller card on it's left side.
 
 ### Merge Sort
+
+Merge sort has the following properties -
+
+1. It follows divide and conquer algorithm (Divide, Conquer & Merge).
+2. Stable Algorithm - it maintains the original order of equal items.
+3. Works in $\theta(nlogn)$ which is the best time you can get on a single processor for a random input. But, it takes $O(n)$ extra space. There variants of merge sort that optimize the typical merge sort that is block merge sort.
+4. It is well suited for external sorting - we can bring parts of a whole input and then sort them using merge sort, by sorting parts of the input one by one we can sort the whole array - we don't need the whole array in RAM.
+5. For Linked List, merge sort works in $O(1)$ aux space, for array quick sort works better than merge sort.
+
+**merge two sorted arrays**
+
+```c
+
+```
 
 ## 9. Strings
 

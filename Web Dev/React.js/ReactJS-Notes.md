@@ -3690,3 +3690,245 @@ As we understand the problem better, we can add some breakpoints in the code in 
 We also get buttons like `next step`, `move into block` and `move out of block`.
 
 Another way to debug your application is by using react `StrictMode`. In this mode, every component is rendered twice which sometimes help you catch issues that might occur due to component re-rendering which won't be immediately caught at first.
+
+## Sending HTTP Requests
+
+Till now, we have been storing the data in our local machine and getting from there.
+
+But, if we want to build an app that can communicate changes between multiple clients throughout the world, and know about the changes - we need to have a central server / database that keeps the data and all clients will know about the changes from the database / server.
+
+We can't connect with database from our react app - because we can have security issues if we do that.
+
+React code is run in the browser, and the user can look into the react code using the developer tools. If you use any database credentials of your database here, then your database will be compromised.
+
+That's why we need a middle man - in this case the server.
+
+The backend server will be the application that communicates with the database and provides the data to frontend. In this way, we can securely fetch data from backend without letting the user know where the data is coming from or how the data is coming.
+
+Another reason is browser is not cabable of opening files. If there is any shared file that you need in your application, then it is not possible for browser to get that file.
+
+The frontend and backend communicate using HTTP requests. And the good thing about having a backend is - user can send only requests that allowed. In other words, the URLs that the backend exposes to the frontend - also known as API endpoints.
+
+### How NOT To Send HTTP Request
+
+We can send HTTP request using `fetch`. If we use fetch and get the places data like following -
+
+```js
+import { useState } from "react";
+import Places from "./Places.jsx";
+
+export default function AvailablePlaces({ onSelectPlace }) {
+  const [availablePlaces, setAvailablePlaces] = useState([]);
+
+  fetch("http://localhost:3000/places")
+    .then((response) => response.json())
+    .then((res) => setAvailablePlaces(res.places));
+
+  return (
+    <Places
+      title="Available Places"
+      places={availablePlaces}
+      fallbackText="No places available."
+      onSelectPlace={onSelectPlace}
+    />
+  );
+}
+```
+
+But the problem with this approach is - it will create an infinite loop.
+
+Everytime the component renders, the fetch will be called and the `setAvailablePlaces` will render the component again, then the same thing will happen again again.
+
+### Async / Await
+
+If you want to fetch the data using `async` / `await`- you can create an async function inside the `useEffect` and call it.
+
+```js
+useEffect(() => {
+  async function getPlaces() {
+    const response = await fetch("http://localhost:3000/places");
+    const resData = await response.json();
+    setAvailablePlaces(resData.places);
+  }
+
+  getPlaces();
+}, []);
+```
+
+### Error in HTTP requests
+
+Sometimes the backend server may fail due to many reasons - network failure, server failure, incorrect backend code etc.
+
+But, the frontend should be prepared to show the user what happened in case of error.
+
+For that we need to check for the `fetch` block and see whether the response we got resulted in failure or not.
+
+For that we can use `response.ok` to check whether the response is a `200`, `300` or `400`.
+
+In case of success the value will be `true` otherwise `false`.
+
+```js
+import { useState } from "react";
+import Places from "./Places.jsx";
+import Error from "./Error.jsx";
+import { useEffect } from "react";
+
+export default function AvailablePlaces({ onSelectPlace }) {
+  const [availablePlaces, setAvailablePlaces] = useState([]);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState();
+
+  useEffect(() => {
+    async function getPlaces() {
+      setIsFetching(true);
+
+      try {
+        const response = await fetch("http://localhost:3000/places");
+        const resData = await response.json();
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch places");
+        }
+
+        setAvailablePlaces(resData.places);
+      } catch (error) {
+        setError({
+          message:
+            error.message ||
+            "Failed to fetch the places, please try again later.",
+        });
+      }
+
+      setIsFetching(false);
+    }
+
+    getPlaces();
+  }, []);
+
+  if (error) {
+    return (
+      <Error title="An Error Occured When Fetching" message={error.message} />
+    );
+  }
+
+  return (
+    <Places
+      title="Available Places"
+      places={availablePlaces}
+      fallbackText="No places available."
+      loadingText="Loading available places..."
+      loading={isFetching}
+      onSelectPlace={onSelectPlace}
+    />
+  );
+}
+```
+
+### Optimistic Updating
+
+You show spinners or some loading state when you are calling the backend server and you know it might take sometime.
+
+But sometimes when you change something in the frontend and try to send the data to backend, you can handle it with 2 different ways.
+
+You can send the data immediately after user changes something in the frontend - and then while the backend server process this data you show a loading state till the response comes.
+
+Or, you can change the state of your frontend optimistically before sending the data and at the same time in the background send the data to backend server so that it can update the server data.
+
+Looking at the following example where I am adding the selected place in the state `userPlaces` and then sending the data to backend -
+
+```js
+async function handleSelectPlace(selectedPlace) {
+  setUserPlaces((prevPickedPlaces) => {
+    if (!prevPickedPlaces) {
+      prevPickedPlaces = [];
+    }
+    if (prevPickedPlaces.some((place) => place.id === selectedPlace.id)) {
+      return prevPickedPlaces;
+    }
+    return [selectedPlace, ...prevPickedPlaces];
+  });
+
+  try {
+    await updateSelectedPlaces([selectedPlace, ...userPlaces]);
+  } catch (error) {
+    // error...
+  }
+}
+```
+
+I am not showing any loading state - instead I changed the state of the frontend for optimal user experience and simultaneously sends data to backend.
+
+In this case, if the backend server fails then we can move back to the previous state by doing this -
+
+```js
+try {
+  await updateSelectedPlaces([selectedPlace, ...userPlaces]);
+} catch (error) {
+  setUserPlaces(userPlaces);
+}
+```
+
+But suddenly reverting back to previous change might confuse the user. So, we should show an error message after reverting back to previous changes.
+
+```js
+import { useRef, useState, useCallback } from "react";
+
+import Places from "./components/Places.jsx";
+import ErrorMsg from "./components/Error.jsx";
+import Modal from "./components/Modal.jsx";
+import DeleteConfirmation from "./components/DeleteConfirmation.jsx";
+import logoImg from "./assets/logo.png";
+import AvailablePlaces from "./components/AvailablePlaces.jsx";
+import { updateSelectedPlaces } from "./http.js";
+
+function App() {
+  // ...
+
+  const [userPlaces, setUserPlaces] = useState([]);
+  const [errorUpdating, setErrorUpdating] = useState();
+
+  // ...
+
+  async function handleSelectPlace(selectedPlace) {
+    setUserPlaces((prevPickedPlaces) => {
+      if (!prevPickedPlaces) {
+        prevPickedPlaces = [];
+      }
+      if (prevPickedPlaces.some((place) => place.id === selectedPlace.id)) {
+        return prevPickedPlaces;
+      }
+      return [selectedPlace, ...prevPickedPlaces];
+    });
+
+    try {
+      await updateSelectedPlaces([selectedPlace, ...userPlaces]);
+    } catch (error) {
+      setUserPlaces(userPlaces);
+      setErrorUpdating(error);
+    }
+  }
+
+  // ...
+
+  function handleError() {
+    setErrorUpdating(null);
+  }
+
+  return (
+    <>
+      <Modal open={errorUpdating} onClose={handleError}>
+        {errorUpdating && (
+          <ErrorMsg
+            title="Error updating user places"
+            message={errorUpdating.message}
+            onConfirm={handleError}
+          />
+        )}
+      </Modal>
+      // ...
+    </>
+  );
+}
+
+export default App;
+```

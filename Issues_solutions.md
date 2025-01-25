@@ -267,3 +267,21 @@ def create_database(db_name):
     with engine.connect() as connection:
         connection.execute(text(f'CREATE DATABASE "{db_name}"'))
 ```
+
+### SQLAlchemy `Table Already Exists`
+
+First, cross checking that the `declarative_base` is used more than 1 time to create that table.
+
+If not solved, put a logger for SQLAlchemy queries that are running -
+
+```py
+engine = create_engine(f'postgresql://{db_user}:{db_pwd}@{db_host}/{db_name}', echo=True)
+
+logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+```
+
+If can't find any query that creates the table, then...
+
+Check the model class itself.
+
+Make sure every column has the type expected according to the data going into it. `str` type data goes to `VARCHAR`, `dict` type data goes to `JSON`, `date` type goes to `Date` and `datetime` type goes to `TIMESTAMP` etc.
