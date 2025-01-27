@@ -21,6 +21,23 @@ Calling a remote procedure is syntactically same as calling a procedure in a pro
 
 RPC implementations also tend to be efficient — the data that is passed between the client and the server is usually encoded in binary formats, and the RPC style encourages relatively small messages (although some care has to be taken to avoid overly chatty interactions).
 
+### How RPC Works?
+
+RPC works between server and client. Client makes the request and server process the request and then send back the response.
+RPC is a remote function call from client. Client calls the remote function with some arguments and blocks the thread from processing. In the server side, when the server gets the request it calls the service asked by the client and returns the reply after executing the request.
+
+Following diagram shows the flow of RPC from client to server and then back to client.
+
+[rpc diagram](./images/rpc-diagram.png)
+
+A remote procedure is identified by three things - 
+
+1. the program number
+2. the version of the RPC
+3. the procedure number
+
+The program number identifies a group of related procedure. A program can have multiple versions and each version contains a set a related procedures. Every procedure is identified by a procedure number.
+
 ### RPC Principles
 
 There are some principles that you have to follow while implementing RPC. They are as follows -
@@ -30,6 +47,27 @@ There are some principles that you have to follow while implementing RPC. They a
 3. Stubs: Function stubs exist on both the client and the server. On the client side, it makes the function call. On the server, it invokes the actual function.
 
 > [**Stub**](<https://en.wikipedia.org/wiki/Stub_(distributed_computing)>): In distributed computing, a stub is a program that acts as a temporary replacement for a remote service or object. It allows the client application to access a service as if it were local, while hiding the details of the underlying network communication. This can simplify the development process, as the client application does not need to be aware of the complexities of distributed computing.
+
+
+### RPC Application Development
+
+Let's consider a situation where you want to access a database which is present in a remote machine. One option is to use an UNIX remote shell to access the remote machine. But you will encounter 2 problms -
+
+- the command will be slow to execute
+- you may have to login to the system to access the database
+
+In this the RPC can help you by -
+
+- setting up a server that responds to the client queries
+- retrieves information based on the queries which is much faster
+
+To develop RPC you need 3 things -
+
+- the server
+- the client
+- the communication protocol between client and server
+
+The implementation of the server and client can be found [here](../clanguage/rpc).
 
 ### Example of RPC
 
