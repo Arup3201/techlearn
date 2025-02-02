@@ -2,7 +2,7 @@
 * dir.x implements some local data types that are not available in libnsl
 */
 
-int MAXDIRLEN = 255;
+const MAXDIRLEN = 255;
 
 typedef string nametype<MAXDIRLEN>;
 
@@ -11,16 +11,16 @@ typedef struct namenode *namelist;
 typedef struct namenode namenode;
 
 struct namenode {
-	nametype name, 
+	nametype name; 
 	namelist next;
 };
 
 union readdir_res switch(int errno) {
 	case 0:
-		return namelist list;
+		namelist list;
 	default:
 		void;
-}
+};
 
 
 program DIRPROG {

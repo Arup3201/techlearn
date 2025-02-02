@@ -127,4 +127,49 @@ Similarly it also created the server stub file which calls the `printmsg_1_svc` 
 
 It also possible for you to create your own data type and not just be restricted to the data types declared in the `libnsl`. You can implement your own data type in the `.x` file. `rpcgen` will generate XDR routines along with the stib files. This routine is used to convert the local data type in host platform to XDR format and vice versa.
 
+To demonstrate the use of data structures in RPC - we will look at the directory listing service where user can remotely list the directory files and sub-folders inside it.
 
+For that we will create the `dir.x` file where we will create the data structures. There are mainly 4 types we are working with -
+
+1. A `nametype` which holds the name of the files and folders. It is a `string` with maximum length of 255. Just like C, we can change the name of the type using `typedef` with the following syntax -
+```c
+const MAXDIRLEN = 255;
+typedef string nametype<MAXDIRLEN>;
+```
+2. We have another type that is `namenode` which has information about the directory and link to the next sub-directory. `namenode` is a structure defined using `struct` just like in C -
+```c
+struct namenode {
+	nametype name, 
+	namelist next;
+};
+```
+
+Then the `struct namenode` is `typedef`ed into just `namenode`. Also we have another type - that is pointer to the `namenode` type called `namelist`.
+
+3. Finally we have another type which is created using `union` in RPCL. Here the union looks different than how it is in C.
+```c
+union readdir_res switch(int errno) {
+    case 0:
+        return namelist list;
+    default:
+        void;
+}
+```
+This syntax is going to create a structure in C which looks like the following -
+```c
+struct readdir_res {
+    int errno;
+    union {
+        namelist list;
+    } readdir_res_u;
+};
+typedef struct readdir_res readdir_res;
+```
+Notice that the union component has same name as the type with additional `_u` appended at the end.
+
+And finally we define the program in RPC where the procedure takes the directory name of type `nametype` and returns type `readdir_res`.
+
+Now we can use `rpcgen` to produce the following files -
+1. `msg.h` header file that declares the program, version and procedure.
+2. `msg_clnt.c` and `msg_svc.c` which are stub and skeleton files for client and server.
+3. `msh_xdr.c` which defines the XDR routine for the complex data structure.
