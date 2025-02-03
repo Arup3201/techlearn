@@ -172,4 +172,13 @@ And finally we define the program in RPC where the procedure takes the directory
 Now we can use `rpcgen` to produce the following files -
 1. `msg.h` header file that declares the program, version and procedure.
 2. `msg_clnt.c` and `msg_svc.c` which are stub and skeleton files for client and server.
-3. `msh_xdr.c` which defines the XDR routine for the complex data structure.
+3. `msg_xdr.c` which defines the XDR routine for the complex data structure.
+
+If there is any data type used in the `.x` file then `rpcgen` tries to find it in the `libnsl` where the xdr routines are defined with `xdr_` prefix (e.g. `xdr_int`).
+
+If there is a data type defined in the `.x` file then `rpcgen` generates routines for that data type in `xdr_*.c` file.
+
+You can also omit the data type definition - a data type that is not supported by `libnsl`. Then you can customize your own xdr_ routine.
+
+
+
