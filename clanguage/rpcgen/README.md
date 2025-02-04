@@ -180,5 +180,17 @@ If there is a data type defined in the `.x` file then `rpcgen` generates routine
 
 You can also omit the data type definition - a data type that is not supported by `libnsl`. Then you can customize your own xdr_ routine.
 
+### Remote Procedure Implementation
 
+In the implementation of the remote procedure, we are traversing the directory mentioned by the client. The directory name is of the type `nametype`.
+
+First we create a directory stream which is an object to iterate over the directory. To create a directory stream we need `opendir` from `dirnet.h`.
+
+The directory stream object is a structure called `DIR`. Also to store any directory information we have `struct dirnet`.
+
+If the `opendir` does not fail, we proceed with traversing the directory. But before that we make sure that we clean the previous result if the remote procedure has already been called. We use `xdr_free` to free the memory allocated to the XDR data type.
+
+Then we initaliz a pointer `nlp` which points to the `res.readdir_res_u.list` at first. Next we iterate over every directory inside the main directory untill it is null.
+
+In every iteration, we get the sub-directory object, create a `namenode` using `malloc`, check for error and finally set the `nl->name` from `d->d_name`, and set the value `nlp` to `&(nl->next)` so that we can link the next directory to the current one.
 
