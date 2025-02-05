@@ -15,7 +15,7 @@ struct namenode {
 	namelist next;
 };
 
-union readdir_res switch(int errno) {
+union readdir_res switch(int error) {
 	case 0:
 		namelist list;
 	default:

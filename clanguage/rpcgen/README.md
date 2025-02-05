@@ -123,6 +123,16 @@ Other files created by `rpcgen` are -
 
 Similarly it also created the server stub file which calls the `printmsg_1_svc` from `msg_proc.c`.
 
+### Series of commands to execute
+
+```sh
+gcc -c msg_proc.c msg_svc.c
+gcc -o server msg_proc.o msg_svc.o -lnsl -ltirpc
+
+gcc -c rprintmsg.c msg_clnt.c
+gcc -o client rprintmsg.o msg_clnt.o -lnsl -ltirpc
+```
+
 ## Passing Complex Data Structures
 
 It also possible for you to create your own data type and not just be restricted to the data types declared in the `libnsl`. You can implement your own data type in the `.x` file. `rpcgen` will generate XDR routines along with the stib files. This routine is used to convert the local data type in host platform to XDR format and vice versa.
@@ -148,7 +158,7 @@ Then the `struct namenode` is `typedef`ed into just `namenode`. Also we have ano
 
 3. Finally we have another type which is created using `union` in RPCL. Here the union looks different than how it is in C.
 ```c
-union readdir_res switch(int errno) {
+union readdir_res switch(int error) {
     case 0:
         return namelist list;
     default:
@@ -158,7 +168,7 @@ union readdir_res switch(int errno) {
 This syntax is going to create a structure in C which looks like the following -
 ```c
 struct readdir_res {
-    int errno;
+    int error;
     union {
         namelist list;
     } readdir_res_u;
@@ -193,4 +203,24 @@ If the `opendir` does not fail, we proceed with traversing the directory. But be
 Then we initaliz a pointer `nlp` which points to the `res.readdir_res_u.list` at first. Next we iterate over every directory inside the main directory untill it is null.
 
 In every iteration, we get the sub-directory object, create a `namenode` using `malloc`, check for error and finally set the `nl->name` from `d->d_name`, and set the value `nlp` to `&(nl->next)` so that we can link the next directory to the current one.
+
+### Compile and output executables
+
+Follow the commands to get the executables for server and client -
+
+```sh
+gcc -c dir_xdr.c
+
+gcc -c readdir_proc.c dir_svc.c -include /usr/include/errno.h
+gcc -o server readdir_dir.o dir_svc.o dir_xdr.o -lnsl -ltirpc
+
+gcc -c rls.c dir_clnt.c -include /usr/include/errno.h
+gcc -o rls.o dir_clnt.o dir_xdr.o -lnsl -ltirpc
+
+sudo ./server
+sudo ./client localhost /usr/share/lib
+```
+
+NOTE: Make sure to include the `errno.h` as `errno` is used in the code. Also to avoid conflicting names we will use `error` in the structure `readdir_res` instead.
+
 

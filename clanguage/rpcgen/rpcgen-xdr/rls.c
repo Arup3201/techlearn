@@ -1,4 +1,3 @@
-#include <rpc/clnt.h>
 #include<stdio.h>
 #include "dir.h"
 
@@ -30,18 +29,18 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	if(result->errno != 0) {
-		errno = result->errno;
+	if(result->error != 0) {
+		errno = result->error;
 		perror(dirname);
 		return 1;
 	}
 
 	namelist nl;
-	for(nl=result->readdir_res_u.list; nl != (namelist)NULL; nl=nl->next) {
+	for(nl=result->readdir_res_u.list; nl != NULL; nl=nl->next) {
 		printf("%s\n", nl->name);
 	}
 
-	xdr_free(xdr_readdir_res, &result);
+	xdr_free((xdrproc_t)xdr_readdir_res, &result);
 	clnt_destroy(clnt);
 
 	return 0;
