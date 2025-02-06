@@ -23,7 +23,7 @@ readdir_1_svc(nametype *dirname, struct svc_req* req) {
 	namelist nl;
 
 	nlp = &res.readdir_res_u.list;
-	while(d == readdir(dirp)) {
+	while((d = readdir(dirp))) {
 		nl = *nlp = (namenode*)malloc(sizeof(namenode));
 		if(nl == (namenode*) NULL) {
 			res.error = EAGAIN;
