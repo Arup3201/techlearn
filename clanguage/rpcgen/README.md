@@ -71,6 +71,8 @@ Also the procedure returns a pointer to the result instead of a direct result. I
 
 Remote procedures are always called with one argument if `-N` option is not provided - if more than one argument is needed then it need to be in a struct and we need to pass the pointer to that struct.
 
+Look at the code [here](./rpcgen-manual/msg_proc.c).
+
 ## Remote Procedure Calling From Client
 
 In the implementation of the `rprintmsg.c` where we actually write the code to call the remote procedure from client. In this function there are few things to note.
@@ -108,6 +110,8 @@ In this case if the output is 0 then we show error otherwise the remote procedur
 You also have to make sure that you include `libnsl` library which contains the networking functions for RPC and XDR.
 
 There are no files related to XDR as we are using data types which are already implemented in the `libnsl`. If we used any user-defined data types then the XDR would have been created.
+
+Look at the code [here](./rpcgen-manual/rprintmsg.c).
 
 ## Other files created by rpcgen
 
@@ -177,6 +181,8 @@ typedef struct readdir_res readdir_res;
 ```
 Notice that the union component has same name as the type with additional `_u` appended at the end.
 
+Look at the full code [here](./rpcgen-xdr/dir.x).
+
 And finally we define the program in RPC where the procedure takes the directory name of type `nametype` and returns type `readdir_res`.
 
 Now we can use `rpcgen` to produce the following files -
@@ -203,6 +209,18 @@ If the `opendir` does not fail, we proceed with traversing the directory. But be
 Then we initaliz a pointer `nlp` which points to the `res.readdir_res_u.list` at first. Next we iterate over every directory inside the main directory untill it is null.
 
 In every iteration, we get the sub-directory object, create a `namenode` using `malloc`, check for error and finally set the `nl->name` from `d->d_name`, and set the value `nlp` to `&(nl->next)` so that we can link the next directory to the current one.
+
+Look at the full code [here](./rpcgen-xdr/readdir_proc.c).
+
+In the client implementation where we call the remote procedure, we traverse the directory in a loop like this -
+
+```c
+for(nl=result->readdir_res_u.list; nl != NULL; nl=nl->next) {
+    printf("%s\n", nl->name);
+}
+```
+
+Look at the client implementation [here](./rpcgen-xdr/rls.c).
 
 ### Compile and output executables
 
