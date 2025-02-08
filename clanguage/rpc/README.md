@@ -54,6 +54,21 @@ This contains functions like -
 - `rpc_call()`: calls the remote procedure present at remote address from client
 - `rpc_broadcast()`: broadcast a call message across all transports of specified type
 
+Lets talk about the two mostly used routines that are used for simplified interface applications - `rpc_call` and `rpc_reg`.
+
+`rpc_call` takes 9 arguments to call the remote procedure from client side. The 9 arguments are -
+1. name of the server host - type `char*`
+2. program number of the RPC program - type `u_long`. If you write any `.x` file - it will be the program number you assign to a `program`.
+3. version of the RPC program - type `u_long`. 
+4. procedure number of the RPC procedure - type `u_long`.
+5. xdr filter to encode inputs args to the remote procedure - type `xdrproc_t`.
+6. pointer to arguments for the remote procedure - type `char*`.
+7. xdr filter to decode remote procedure result - type `xdrproc_t`.
+8. address to store result of the remote procedure - type `char*`.
+9. mention the transport type using the last argument - type `char*`.
+
+Example program is [here](./simplified-interface/clnt.c).
+
 ### Standard Interface
 
 The standard interface gives developer better control over how the server and client interact via RPC. It is divided into top, intermediate, expert and bottom.
@@ -70,6 +85,3 @@ Following routines are present in this interface -
 - `clnt_create_timed()`: creates a client handle just like `clnt_create()` but also specify how much maximum time client has before it time outs the creation attempt for all types of transports.
 - `svc_create()`: creates a server handle and specifies which procedure to dispatch when client makes a call to the server
 - `clnt_call()`: calls the remote procedure to send request to server
-
-
-
