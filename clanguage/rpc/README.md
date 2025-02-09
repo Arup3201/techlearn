@@ -57,17 +57,23 @@ This contains functions like -
 Lets talk about the two mostly used routines that are used for simplified interface applications - `rpc_call` and `rpc_reg`.
 
 `rpc_call` takes 9 arguments to call the remote procedure from client side. The 9 arguments are -
-1. name of the server host - type `char*`
-2. program number of the RPC program - type `u_long`. If you write any `.x` file - it will be the program number you assign to a `program`.
-3. version of the RPC program - type `u_long`. 
-4. procedure number of the RPC procedure - type `u_long`.
-5. xdr filter to encode inputs args to the remote procedure - type `xdrproc_t`.
-6. pointer to arguments for the remote procedure - type `char*`.
-7. xdr filter to decode remote procedure result - type `xdrproc_t`.
-8. address to store result of the remote procedure - type `char*`.
-9. mention the transport type using the last argument - type `char*`.
+1. *host*: name of the server host - type `char*`
+2. *prognum*: program number of the RPC program - type `u_long`. If you write any `.x` file - it will be the program number you assign to a `program`.
+3. *vernum*: version of the RPC program - type `u_long`. 
+4. *procnum*: procedure number of the RPC procedure - type `u_long`.
+5. *inproc*: xdr filter to encode inputs args to the remote procedure - type `xdrproc_t`.
+6. *in*: pointer to arguments for the remote procedure - type `char*`.
+7. *outproc*: xdr filter to decode remote procedure result - type `xdrproc_t`.
+8. *out*: address to store result of the remote procedure - type `char*`.
+9. *nettype*: mention the transport type using the last argument - type `char*`.
+
+`rpc_call` will call the remote procedure specified by the `prognum`, `version` and `procnum` on the host. When it calls the remote procedure, it passes the arguments in a address `in` and also provides a XDR filter `inproc` to encode this argument when the remote procedure receives it. It stores the result of the remote procedure on the address `out` which is filtered using the XDR filter `ourproc`.
+
+When `rpc_call` is executed, it blocks the flow until it receives the response from the server. The server may return in success or failure when it replies. In case of success the server returns 0 which is defined as `RPC_SUCCESS` and in case of failure it returns non-zero value which can be castes to an enumerated type `clnt_stat`. This error function provided by rpc prints an error message showing why an RPC failed.
 
 Example program is [here](./simplified-interface/clnt.c).
+
+Since RPC uses data types - some may not be supported by all machines. So we use XDR filters that helps the client and server communicate using data types that are supported on each machine. That is why before remote procedure gets the input arguments - it is encoded using the XDR filter. Same is true for the result coming from the remote procedure. In the example, the output is filtered using the type `xdr_u_long` which is used for unsigned long type data. As there is no input to the remote procedure - xdr filter void for that.
 
 ### Standard Interface
 
@@ -85,3 +91,4 @@ Following routines are present in this interface -
 - `clnt_create_timed()`: creates a client handle just like `clnt_create()` but also specify how much maximum time client has before it time outs the creation attempt for all types of transports.
 - `svc_create()`: creates a server handle and specifies which procedure to dispatch when client makes a call to the server
 - `clnt_call()`: calls the remote procedure to send request to server
+
