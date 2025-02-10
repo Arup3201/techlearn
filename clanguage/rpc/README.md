@@ -75,6 +75,69 @@ Example program is [here](./simplified-interface/clnt.c).
 
 Since RPC uses data types - some may not be supported by all machines. So we use XDR filters that helps the client and server communicate using data types that are supported on each machine. That is why before remote procedure gets the input arguments - it is encoded using the XDR filter. Same is true for the result coming from the remote procedure. In the example, the output is filtered using the type `xdr_u_long` which is used for unsigned long type data. As there is no input to the remote procedure - xdr filter void for that.
 
+`rpc_reg` takes 7 arguments which are as follows -
+1. `prognum`: program number of the RPC procedure type `u_long`
+2. `vernum`: version number of the procedure type `u_long`
+3. `procnum`: procedure number type `u_long`
+4. `procname`: name of the procedure type `char*`
+5. `inproc`: XDR filter for input argument type `xdrproc_t`
+6. `outproc`: XDR filter for the remote procedure output type `xdrproc_t`
+7. `nettype`: type of transport to use type `char*`
+
+The dispatcher mentioned in the `rpc_gen` will enocode the result into XDR before sending over the transport. Also it is responsible for decoding the input arguments which were in XDR format. After the remote procedure is registered with the XDR filters, `svc_run` will be called to invoke the remote procedure in response to the client messages. It never stops running.
+
+Some things to note here -
+
+- The arguments and results are passed as addresses. This is true for all remote procedure calls.
+- If the client do not want any output then they can simply pass `NULL`.
+- The result must exist as static data in the server before returning. Otherwise the data will be lost because the procedure has exited.
+- Only a single argument is allowed to the remote procedure. If multiple arguments are expected then it should be passed as structure.
+
+### Passing Data Types
+
+RPC can handle any primitive or non-primitive data type using external data representations or XDR. RPC always converts the data type of one machine into XDR before sending it over the transport. And it converts it back to machine representation when received. Converting to XDR type is called serializing and converting it back to machine type is called deserializing. 
+
+Because RPC uses a transfer format for data types when communicating - it supports different machines with different byte order or structure layout to communicate among themselves.
+
+There are XDR primitive types like - 
+
+- `xdr_int`
+- `xdr_char`
+- `xdr_short`
+- `xdr_long`
+- and many more...
+
+Programmers can also make their own data type. For that first we need to create a structure or something that defines this type, and then we need to write the XDR routine that could process the user-defined data type. The routine will take 2 arguments - a XDR handle and a pointer to the result.
+
+Let's take an example. If we are building a user-defined type called `struct simple` then the structure look something like this -
+
+*simple.h*
+```c
+struct simple {
+    int a;
+    short b;
+};
+```
+
+Then we need the routine that process the type -
+
+*xdr_simple.c*
+```c
+#include<rpc/rpc.h>
+#include "simple.h"
+
+bool_t xdr_simple(XDR* xdrsp, struct simple *simp) {
+    if(!xdr_int(xdrsp, &simp->a)) {
+        return FALSE;
+    }
+    if(!xdr_short(xdrsp, &simp->b)) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+```
+
 ### Standard Interface
 
 The standard interface gives developer better control over how the server and client interact via RPC. It is divided into top, intermediate, expert and bottom.
