@@ -109,6 +109,8 @@ There are XDR primitive types like -
 
 Programmers can also make their own data type. For that first we need to create a structure or something that defines this type, and then we need to write the XDR routine that could process the user-defined data type. The routine will take 2 arguments - a XDR handle and a pointer to the result.
 
+XDR routines return TRUE if the conversion is successful otherwise FALSE.
+
 Let's take an example. If we are building a user-defined type called `struct simple` then the structure look something like this -
 
 *simple.h*
@@ -138,6 +140,40 @@ bool_t xdr_simple(XDR* xdrsp, struct simple *simp) {
 }
 ```
 
+We can also pass user-defined structure data in RPC in a similar way. For complex use cases we might need complex XDR fabricated routines like `xdr_array`, `xdr_references`, `xdr_vector` and many more...
+
+One example to demonstrate the use of some of the fabricated routines. Let's say we want to create an array type data structure.
+
+*xdr_varintarr.h*
+```c
+struct varintarr {
+    int *data;
+    int len;
+};
+```
+
+To create an argument processing routine for this structure we need to use `xdr_array`.
+
+```c
+bool_t xdr_varintarr(XDR* xdrsp, struct varintarr* arr) {
+
+    if(!xdr_array(xdrsp, (caddr_t)&arr->data, (uint_8*)&arr->len, MAXLEN, sizeof(int), xdr_int)) return FALSE;
+    return TRUE;
+}
+```
+
+`xdr_array` takes the XDR handle, pointer to the array, address of the length of the array, maximum array size, size of any element in the array and finally a pointer to an XDR routine for any single array element.
+
+If the array length is known then you can use `xdr_vector` for more efficiency. 
+
+```c
+int intarr[SIZE];
+
+bool_t xdr_intarr(XDR* xdrsp, int intarr[]) {
+    return xdr_vector(xdrsp, intarr, SIZE, sizeof(int), xdr_int);
+}
+```
+
 ### Standard Interface
 
 The standard interface gives developer better control over how the server and client interact via RPC. It is divided into top, intermediate, expert and bottom.
@@ -154,4 +190,5 @@ Following routines are present in this interface -
 - `clnt_create_timed()`: creates a client handle just like `clnt_create()` but also specify how much maximum time client has before it time outs the creation attempt for all types of transports.
 - `svc_create()`: creates a server handle and specifies which procedure to dispatch when client makes a call to the server
 - `clnt_call()`: calls the remote procedure to send request to server
+
 
