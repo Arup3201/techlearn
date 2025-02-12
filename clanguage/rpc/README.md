@@ -191,4 +191,14 @@ Following routines are present in this interface -
 - `svc_create()`: creates a server handle and specifies which procedure to dispatch when client makes a call to the server
 - `clnt_call()`: calls the remote procedure to send request to server
 
+### Building RPC application using high-level interface
+
+Let's build an RPC application that will list the directories of a remote machine. To build this, we need a program that will list the directories locally then we need to register this procedure as remote procedure which could be called from other clients. Then in the client side we need to call the remote procedure and pass the arguments.
+
+So let's start by writing the code for listing local directories.
+
+In the local listing directory program - we use an char array to store the result of the directory traversal. It is in the form of a string where directories are seperated by new lines. [Local procedure to list the directory structure](./high-level-interface/read_dir.c).
+
+This local procedure will be converted to remote procedure. For now we will use a simple c program that use this function to list down the directories. [Program that uses read_dir](./high-level-interface/lls.c).
+
 
