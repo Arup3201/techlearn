@@ -2,7 +2,6 @@
 
 #include "rls.h"
 #include <rpc/rpc.h>
-#include <string.h>
 
 void read_dir_clnt(char*, char*);
 
@@ -12,10 +11,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	char dir[DIR_SIZE];
-	strcpy(dir, argv[2]);
-
-	read_dir_clnt(argv[1], dir);
+	read_dir_clnt(argv[1], argv[2]);
 	return 1;
 }
 
@@ -24,13 +20,12 @@ void read_dir_clnt(char* host, char* dir) {
 	fprintf(stdout, "Trying to search %s directory\n", dir);
 
 	enum clnt_stat cs;
-	char* result;
-	cs = callrpc(host, READDIR_PROG, READDIR_VERS, READDIR_PROC, (xdrproc_t)xdr_dir, dir, (xdrproc_t)xdr_dir, result);
+	char *result;
+	cs = callrpc(host, READDIR_PROG, READDIR_VERS, READDIR_PROC, (xdrproc_t)xdr_dir, &dir, (xdrproc_t)xdr_dir, &result);
 	if(cs != 0) {
 		clnt_perrno(cs);
 		return;
 	}
 
-	printf("%s\n", result);
+	fprintf(stdout, "%s", result);
 }
-
