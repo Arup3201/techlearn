@@ -201,4 +201,128 @@ In the local listing directory program - we use an char array to store the resul
 
 This local procedure will be converted to remote procedure. For now we will use a simple c program that use this function to list down the directories. [Program that uses read_dir](./high-level-interface/lls.c).
 
+The program takes the directory name that you want to list down as a command line argument. Then calls the `read_dir` function that lists the files and folders inside the directory.
+
+To conver this local procedure into a remote procedure - we need to write code for `read_dir` that supports such calls. We need to think about the parameters and return types that the remote procedure will take.
+
+As discussed for the local `read_dir` - the remote procedure will  also take the directory name `char*` as input and return the directory structure `char*` as output.
+
+Now we know the data types - we have to create the XDR routines for the data type so that it is supported for machines with different architecture and byte order. 
+
+The XDR routine will look something like the following -
+
+```c
+#include<rpc/rpc.h>
+#include "rls.h"
+
+bool_t xdr_dir(XDR* xdrsp, char* c) {
+	return (xdr_string(xdrsp, &c, DIR_SIZE));
+}
+```
+
+The routine takes the XDR handle `XDR*` and a pointer to the data that we want to convert into it's XDR format. As you can see here, we are using the `xdr_string` routine to convert our string type data into XDR format.
+
+For more complex types we rely on fabricated XDR routines.
+
+Now we have the data type - we can move to the remote procedure `read_dir`. The following is the updated implementation of `read_dir` -
+
+```c
+#include<stdio.h>
+#include<dirent.h>
+
+int read_dir(char *dir) {
+	DIR* dirp;
+	struct dirent *d;
+	fprintf(stdout, "Trying to search the directory %s\n", dir);
+
+	dirp = opendir(dir);
+	if(dirp == NULL) {
+		fprintf(stderr, "Error: Failed to find directory %s", dir);
+		return NULL;
+	}
+
+	dir[0] = NULL;
+	while((d = readdir(dirp)) != NULL) {
+		sprintf(dir, "%s%s\n", dir, d->d_name);
+	}
+	
+	closedir(dirp);
+	return (int)dir;
+}
+```
+
+There are certain points to note here -
+
+- we are taking the character pointer here and returning the same pointer. This will directly modify the dirname the caller has passed to the remote procedure.
+- we set the `dir` to null.
+- we use `sprintf` to store the directory structure string inside the `dir` variable. Every loop appends next directory file/folder with a new line in the `dir`.
+- we conver the char pointer `dir` into integer and return it.
+
+Now we can register the remote procedure to the server and let the client use this remote procedure. To register the procedure into the server, we will use `registerrpc` function.
+
+```c
+#include "rls.h"
+#include <rpc/rpc.h>
+
+int main() {
+	extern bool_t xdr_dir(XDR*, char*);
+
+	registerrpc(READDIR_PROG, READDIR_VERS, READDIR_PROC, read_dir, (xdrproc_t)xdr_dir, (xdrproc_t)xdr_dir);
+	svc_run();
+
+	return 1;
+}
+```
+
+`registerrpc` registers the procedure to the RPC service. If a remote call to procedure with program number `READDIR_PROG`, version number `READDIR_VERS` and procedure number `READDIR_PROC` - then `registerrpc` will call the procedure `read_dir` with pointers to the input arguments. It returns a pointer to it's output data, the data that is returned should be static if this variable is created inside the procedure.
+
+Both input and output are encoded and decoded using the XDR routine `xdr_dir`.
+
+In case of failure it returns -1 otherwise 0.
+
+Now the server knows which procedure to call in case the client makes a request to it. So, let's create the client that will make the remote procedure call and print the remote directory listings.
+
+```c
+#include "rls.h"
+#include <rpc/rpc.h>
+#include <string.h>
+
+void read_dir_clnt(char*, char*);
+
+int main(int argc, char* argv[]) {
+	if(argc != 3) {
+		fprintf(stderr, "usage: %s host dirname", argv[0]);
+		return 0;
+	}
+
+	char dir[dir_size];
+	strcpy(dir, argv[2]);
+
+	read_dir_clnt(argv[1], dir);
+	printf("%s", dir);
+
+	return 1;
+}
+
+void read_dir_clnt(char* host, char* dir) {
+	extern bool_t xdr_dir(xdr*, char*);
+	fprintf(stdout, "trying to search %s directory\n", dir);
+
+	enum clnt_stat cs;
+	cs = callrpc(host, readdir_prog, readdir_vers, readdir_proc, (xdrproc_t)xdr_dir, dir, (xdrproc_t)xdr_dir, dir);
+	if(cs != 0) {
+		clnt_perrno(cs);
+		return;
+	}
+}
+```
+
+It is a simple program that takes 2 arguments - host name and the directory to list.
+
+After that it calls the `read_dir_clnt` which uses the `callrpc` function to make the remote procedure call. This function makes a remote call the remote procedure associated with program number `readdir_prog`, version number `readdir_vers` and procedure number `readdir_proc`.  The parameter `dir` is passed as the argument as well as the place to store the result to the remote procedure. The arguments and returned result will be address of the variables.
+
+To encode and decode the data from client to server and vice-versa - we use the routine `xdr_dir`.
+
+In case of error, it returns -1 otherwise 0. To show what kind of RPC error happened while calling the remote procedure - we use `clnt_perrno` that takes `enum clnt_stat` value to tell what happened.
+
 

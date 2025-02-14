@@ -7,6 +7,6 @@
 #define READDIR_VERS ((u_long) 1)
 #define READDIR_PROC ((u_long) 1)
 
-extern char** read_dir(char*);
+extern char* read_dir(char*);
 
 #endif

@@ -1,28 +1,22 @@
 #include<stdio.h>
 #include<dirent.h>
-#include <string.h>
-#include "rls.h"
 
-char** read_dir(char *dirname) {
+int read_dir(char *dir) {
 	DIR* dirp;
 	struct dirent *d;
-	fprintf(stdout, "Trying to search the directory %s\n", dirname);
+	fprintf(stdout, "Trying to search the directory %s\n", dir);
 
-	dirp = opendir(dirname);
+	dirp = opendir(dir);
 	if(dirp == NULL) {
-		fprintf(stderr, "Error: Failed to find directory %s", dirname);
+		fprintf(stderr, "Error: Failed to find directory %s", dir);
 		return NULL;
 	}
 
-	static char dir[DIR_SIZE];
-	strcat(dir, dirname);
-	strcat(dir, "\n\n");
-
+	dir[0] = NULL;
 	while((d = readdir(dirp)) != NULL) {
-		strcat(dir, d->d_name);
-		strcat(dir, "\n");
+		sprintf(dir, "%s%s\n", dir, d->d_name);
 	}
 	
 	closedir(dirp);
-	return (char**)&dir;
+	return (int)dir;
 }
