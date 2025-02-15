@@ -27,7 +27,7 @@ struct namenode {
 typedef struct namenode namenode;
 
 struct readdir_res {
-	int errno;
+	int error;
 	union {
 		namelist list;
 	} readdir_res_u;
