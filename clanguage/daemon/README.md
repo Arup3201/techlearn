@@ -138,3 +138,21 @@ The last 3 are using `/dev/null` as their stream which means they are closed.
 2. It will not have any terminal associated with it (no `tty`).
 3. It will not have any input or output stream as the `stdin`, `stdout` and `stderr` are closed.
 4. The only files associated with it are some shared files, sockets and log files.
+
+## Creating a daemon using "double fork"
+
+This is a technique that is used to create traditional daemons. If you want to build modern daemons then along with this step there are some additional steps that are mentioned in the `man 7 daemon` page.
+
+**NOTE**: `fork` call creates child processes. In case of failure it returns negative value otherwise it returns the id the child process. It returns 0 to notify it has returned to child process.
+
+**NOTE**: `setsid` call creates a new session if the calling process is not a process group leader. The calling process is the leader of the new session.
+
+The overall idea of "double fork" is using `fork` then `setsid` and finally a last `fork` to get a process that is running directly under `init` and has no controlling terminal `tty`.
+
+The steps are as follows -
+
+1. Call `fork` so that the process can run in the background.
+2. Call `setsid` so that we move away from the shell's session to an independent session. 
+3. Call `fork` again so that the process is not a process group leader in the new session. This will ensure the process does not get access to any terminal (`tty`).
+
+In the first step after we `fork` and get the child process - we exit from the parent process. This makes the child process an orphan process. Orphan processes run under `init` with process ID 1. Aftere the last `fork` the child process creates a second child process, the first child process exits and the remaining child process will not be the process group leader. This final process will never have any controlling terminal. So, we got a daemon process now.
