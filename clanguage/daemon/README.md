@@ -156,3 +156,153 @@ The steps are as follows -
 3. Call `fork` again so that the process is not a process group leader in the new session. This will ensure the process does not get access to any terminal (`tty`).
 
 In the first step after we `fork` and get the child process - we exit from the parent process. This makes the child process an orphan process. Orphan processes run under `init` with process ID 1. Aftere the last `fork` the child process creates a second child process, the first child process exits and the remaining child process will not be the process group leader. This final process will never have any controlling terminal. So, we got a daemon process now.
+
+## Code to create a daemon with double fork
+
+```c
+#include <fcntl.h> // open, close
+#include<unistd.h> // fork, setsid, _exit, 
+#include<stdlib.h> // EXIT_SUCCESS
+#include<sys/stat.h> // umask
+#include "become_daemon.h"
+
+int become_daemon(int flags) {
+	switch(fork()) {
+		case -1: return -1; // fork failed so return
+		case 0: break; // it is the child process so process to next code block
+		default: _exit(EXIT_SUCCESS); // it is the parent
+	}
+
+	if(setsid() == -1) { // open a new session and make the current child process it's process group leader
+		return -1;
+	}
+
+	switch(fork()) {
+		case -1: return -1; // fork failure
+		case 0: break; // child process 
+		default: _exit(EXIT_SUCCESS); // exit the first child process
+	}
+
+	// after the parent process of the second child process is exited. the current process is now an orphan process.
+	// init will become the parent process of this orphan process
+	
+	// according to the flag we will
+	// change the directory to /
+	// clear file creation mode mask
+	// close all open files
+	// set stdin, stdout and stderr to /dev/null
+	
+	if(!(flags & BD_NO_MASK)) umask(0);
+
+	if(!(flags & BD_NO_CHDIR)) chdir("/");
+
+	if(!(flags & BD_NO_OPEN_FILE)) {
+		int maxfd;
+		maxfd = sysconf(_SC_OPEN_MAX);
+
+		if(maxfd == -1) {
+			maxfd = BD_MAX_CLOSE;
+		}
+
+		int fd = maxfd;
+		while(fd >= 0) {
+			close(fd);
+			fd --;
+		}
+	}
+
+	if(!(flags & BD_NO_STD)) {
+		close(STDIN_FILENO);
+
+		int fd = open("/dev/null", O_RDWR);
+		if(fd != STDIN_FILENO) {
+			return -1;
+		}
+		if(dup2(STDIN_FILENO, STDOUT_FILENO) != STDIN_FILENO) {
+			return -2;
+		}
+		if(dup2(STDIN_FILENO, STDERR_FILENO) != STDIN_FILENO) {
+			return -3;
+		}
+	}
+
+	return 0;
+}
+```
+
+The code does the following -
+
+1. `fork` the current process to create a child process with the current process as it's parent.
+2. In the parent process (`fork()` returns some +ve value) we exit successfully.
+3. For the child process (`fork()` returns 0) we proceed.
+4. Child process is directly under the shell process, so we move to a new sessio using `setsid`.
+5. In the child process inside new session, we create another child process and then exit the current child process. This makes the child process an orphan process without any terminal.
+6. Now this orphan process is under the `init` process and becomes a daemon.
+7. Next steps are for setting the file mask mode to 0. Setting the current directory to root. Then closing all the opened file descriptors and finally setting the `stdin`, `stdout` and `stderr` to `/dev/null`.
+
+
+## Additional files
+
+There are some additional code that you need to run the following code. We have the `become_daemon` function but we also need an header file `become_daemon.h` to include in other `.c` files where you want to create a daemon.
+
+```c
+#ifndef BECOME_DAEMON_H
+#define BECOME_DAEMON_H
+
+#define BD_NO_MASK 01
+#define BD_NO_CHDIR 02
+#define BD_NO_OPEN_FILE 03
+#define BD_NO_STD 04
+#define BD_MAX_CLOSE 8192
+
+int become_daemon(int);
+
+#endif // !BECOME_DAEMON_H
+```
+
+And the `main.c` file which will use this `become_daemon` function to create the daemon.
+
+```c
+#include<stdlib.h>
+#include<syslog.h>
+#include<unistd.h>
+
+#include "become_daemon.h"
+
+int main(int argc, char* argv[]) {
+	char* LOGNAME = "BECOME_DAEMON";
+
+	int ret = become_daemon(1);
+	if(ret) {
+		syslog(LOG_USER | LOG_ERR, "become_daemon call failed!");
+		closelog();
+		return EXIT_FAILURE;
+	}
+
+	openlog(LOGNAME, LOG_PID, LOG_USER);
+	syslog(LOG_USER | LOG_INFO, "starting");
+
+	while(1) {
+		sleep(60);
+		syslog(LOG_USER | LOG_INFO, "running");
+	}
+
+	return 0;
+}
+```
+
+Remember that daemons do not interact with any terminal, so they do not have access to input and output streams. That is the reason we are using `syslog` to create logs and show outputs in the form of a log. The outputs will availabel in the `/var/log/syslog` file.
+
+Now we have got our daemon. Let's start the daemon now!
+
+```sh
+gcc main.c become_daemon.c -o main.out
+./main.out
+
+ps xao # shows all the processes that do not have any tty
+ps 7735 # check your daemon process ID, you will see that it is directly running under init
+```
+
+If you do not see the entry of your daemon in the list of processes then most probably it failed. You can verify it by opeing `/var/log/syslog` file and searching for `main.out`. If the message says `become_daemon call failed!` then there is some error.
+
+
