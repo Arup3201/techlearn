@@ -38,4 +38,62 @@ The pager takes commands to read/write pages of data. It keeps track of the offs
 
 The OS Interface is the layer that differs for different operating systems. This interface was built for portability between different OS. It defines the way OS specific tasks like opening, writing, reading or closing files in a disk will happen. SQLite has VFSes object that provides methods for such along with some other OS specific things like getting the current time, randomly generating numbers. Currently SQLite only supports VFSes for unix and windows systems.
 
+## REPL - Read Evaluate Print Loop
 
+When you type `sqlite3` you go inside a REPL where the program reads your commands and evaluate it and print the result. Then move to the next input command.
+
+Something like the following -
+
+```sh
+> sqlite3
+
+SQLite version 3.50.0 2025-02-19 13:05:33
+Enter ".help" for usage hints.
+Connected to a transient in-memory database.
+Use ".open FILENAME" to reopen on a persistent database.
+> create table users(id int, username varchar(255), email varchar(255));
+> .tables
+users
+> .exit
+~
+```
+
+We can build something similar with C but as we have no language parser to understand anythin - the only command we can try is `.exit` that will exit the process.
+
+I am writing the code inside a file called `repl.c`.
+
+```c
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<stdbool.h>
+
+
+int main(int argc, char* argv[]) {
+	char* cmd = NULL; 
+	size_t buffer_length, total_chars_read;
+
+	while(true) {
+		fprintf(stdout, "db> ");
+		total_chars_read = getline(&cmd, &buffer_length, stdin);
+
+		if(total_chars_read < 0) {
+			fprintf(stdout, "%s: failed to read from input stream\n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+
+		cmd[total_chars_read - 1] = 0;
+
+		if(strcmp(cmd, ".exit") == 0) {
+			fprintf(stdout, "%s: exiting the REPL\n", argv[0]);
+			exit(EXIT_SUCCESS);
+		} else {
+			fprintf(stdout, "%s: can't recognize the command\n", argv[0]);
+		}
+	}
+
+
+	free(cmd);
+	return 0;
+}
+```
