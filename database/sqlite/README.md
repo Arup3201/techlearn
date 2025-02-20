@@ -70,7 +70,7 @@ I am writing the code inside a file called `repl.c`.
 
 
 int main(int argc, char* argv[]) {
-	char* cmd = NULL; 
+	char* cmd;
 	size_t buffer_length, total_chars_read;
 
 	while(true) {
@@ -92,8 +92,12 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-
-	free(cmd);
 	return 0;
 }
 ```
+
+The code logic is pretty simple -
+
+1. We run an infinite loop which is the main concept of REPL.
+2. Everytime we read a line from input stream using `getline`. This function will store the line into `*cmd` and also store the number of bytes it need `buffer_length`. The last argument is about stream we want to use for our input. This function returns a line which includes new line if included. So to get the right value we have to subtract 1 from the numbers of chars read from the input stream.
+3. The input could be `.exit` or something else. If it is `.exit` then we successfully exit the program otherwise we show an error message.
