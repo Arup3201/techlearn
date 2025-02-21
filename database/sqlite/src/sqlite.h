@@ -1,0 +1,41 @@
+#ifndef SQLITE_H
+#define SQLITE_H
+
+typedef struct {
+	char* buffer;
+	int length;
+} InputBuffer;
+
+
+typedef enum {
+	META_COMMAND_FAILURE, 
+	META_COMMAND_SUCCESS
+} MetaCmdResult;
+
+typedef enum {
+	STATEMENT_SELECT, 
+	STATEMENT_INSERT, 
+	STATEMENT_DELETE
+} StatementType;
+
+typedef struct {
+	StatementType type;
+} Statement;
+
+typedef enum {
+	COMPILE_FAILURE, 
+	COMPILE_SUCCESS
+} CompileResult;
+
+typedef enum {
+	STATEMENT_EXECUTION_FAILURE, 
+	STATEMENT_EXECUTION_SUCCESS
+} StatementExecResult;
+
+void sqlite_get_cmd(InputBuffer*);
+void sqlite_free_buffer(InputBuffer*);
+MetaCmdResult sqlite_execute_meta_cmd(InputBuffer*);
+CompileResult sqlite_compile_statement(InputBuffer*, Statement*);
+StatementExecResult sqlite_execute_statement(Statement*);
+
+#endif
