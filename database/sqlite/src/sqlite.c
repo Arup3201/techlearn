@@ -4,6 +4,15 @@
 #include <stdio.h>
 #include <string.h>
 
+
+const unsigned int ID_SIZE = get_attribute_size(Statement, id);
+const unsigned int USERNAME_SIZE = get_attribute_size(Statement, username);
+const unsigned int EMAIL_SIZE = get_attribute_size(Statement, email);
+
+const unsigned int ID_OFFSET = 0;
+const unsigned int USERNAME_OFFSET = ID_SIZE + ID_OFFSET;
+const unsigned int EMAIL_OFFSET = USERNAME_SIZE + USERNAME_OFFSET;
+
 void sqlite_get_cmd(InputBuffer *in) {
 	fprintf(stdout, "sqlite> ");
 
@@ -38,9 +47,15 @@ MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in) {
 
 CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	if(strncmp(in->buffer, "insert", 6) == 0) {
-		stat->type = STATEMENT_INSERT;
+		stat->type = STATEMENT_INSERT;	
+
+		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &stat->id, stat->username, stat->email);
+		if(args_to_insert != 3) {
+			return COMPILE_FAILURE;
+		}
+
 		return COMPILE_SUCCESS;
-	}
+		}
 	else if(strncmp(in->buffer, "select", 6) == 0) {
 		stat->type = STATEMENT_SELECT;
 		return COMPILE_SUCCESS;
@@ -49,20 +64,29 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	return COMPILE_FAILURE;
 }
 
-StatementExecResult sqlite_execute_statement(Statement *stat) {
+StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
+	
+
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+
+StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+
+StatementExecResult sqlite_execute_statement(Statement *stat, Table *table) {
 	switch(stat->type) {
 		case STATEMENT_INSERT:
-			fprintf(stdout, "INSERT operation will be implemented later\n");
-			return STATEMENT_EXECUTION_SUCCESS;
+			return sqlite_execute_insert_statement(stat, table);
 
 		case STATEMENT_SELECT:
-			fprintf(stdout, "INSERT operation will be implemented later\n");
-			return STATEMENT_EXECUTION_SUCCESS;
+			return sqlite_execute_select_statement(stat, table);
 
 		default:
 			return STATEMENT_EXECUTION_FAILURE;
 	}
 }
+
 
 void sqlite_free_buffer(InputBuffer *in) {
 	free(in->buffer);

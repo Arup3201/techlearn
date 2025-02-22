@@ -18,8 +18,13 @@ typedef enum {
 	STATEMENT_DELETE
 } StatementType;
 
+#define USERNAME_MAX_SIZE 32
+#define EMAIL_MAX_SIZE 256
 typedef struct {
 	StatementType type;
+	int id;
+	char username[USERNAME_MAX_SIZE];
+	char email[EMAIL_MAX_SIZE];
 } Statement;
 
 typedef enum {
@@ -32,10 +37,18 @@ typedef enum {
 	STATEMENT_EXECUTION_SUCCESS
 } StatementExecResult;
 
+#define get_attribute_size(Struct, Attribute) (sizeof(((Struct*)0)->Attribute))
+
+#define TABLE_MAX_PAGES 100
+typedef struct {
+	unsigned int n_rows;
+	void* pages[TABLE_MAX_PAGES];
+} Table;
+
 void sqlite_get_cmd(InputBuffer*);
 void sqlite_free_buffer(InputBuffer*);
 MetaCmdResult sqlite_execute_meta_cmd(InputBuffer*);
 CompileResult sqlite_compile_statement(InputBuffer*, Statement*);
-StatementExecResult sqlite_execute_statement(Statement*);
+StatementExecResult sqlite_execute_statement(Statement*, Table*);
 
 #endif

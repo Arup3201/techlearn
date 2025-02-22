@@ -102,16 +102,6 @@ The code logic is pretty simple -
 2. Everytime we read a line from input stream using `getline`. This function will store the line into `*cmd` and also store the number of bytes it need `buffer_length`. The last argument is about stream we want to use for our input. This function returns a line which includes new line if included. So to get the right value we have to subtract 1 from the numbers of chars read from the input stream.
 3. The input could be `.exit` or something else. If it is `.exit` then we successfully exit the program otherwise we show an error message.
 
-## SQLite compiler and virtual machine
-
-The main part of the sqlite frontend is the compiler that converts the sql statement into the internal representation supported to do the database work.
-
-We will simplify the 2 parts - SQL Command Processor and Virtual Machine. SQL command processor has 3 main parts - tokenizer, parser and code generator. We will not use any complexity for the command processor. Our command processor for now will just understand "meta" commands and `insert` and `select` commands. "meta" commands are commands that are not considered part sql like `.exit`, `.tables` etc. Any command out of them will be unrecognized. 
-
-We will break the command processor into 2 parts - one for meta commands and other for sql statements.
-
-"meta" commands are commands that are not considered part sql like `.exit`, `.tables` etc.
-
 For the sake of building sqlite we should also start creating an `sqlite.h` file that will contain all the declarations related to the sqlite structures, enum types and functions. Everytime we can include in any file where we want to use those types and functions.
 
 I am creating the following 3 files -
@@ -129,8 +119,6 @@ To compile and run the sqlite - we need to do this -
 gcc main.c sqlite.c -o main.out
 ./main.out
 ```
-
-### Structures and function declarations needed
 
 I will convert the already existing repl example into code that uses structures and enums which will make it easier to extend this application.
 
@@ -215,6 +203,17 @@ void sqlite_free_buffer(InputBuffer*);
 
 Now I hope you have understood the flow of how I am writing the code and maintaining them between files.
 
+
+## SQLite compiler and virtual machine
+
+The main part of the sqlite frontend is the compiler that converts the sql statement into the internal representation supported to do the database work.
+
+We will simplify the 2 parts - SQL Command Processor and Virtual Machine. SQL command processor has 3 main parts - tokenizer, parser and code generator. We will not use any complexity for the command processor. Our command processor for now will just understand "meta" commands and `insert` and `select` commands. "meta" commands are commands that are not considered part sql like `.exit`, `.tables` etc. Any command out of them will be unrecognized. 
+
+We will break the command processor into 2 parts - one for meta commands and other for sql statements.
+
+"meta" commands are commands that are not considered part sql like `.exit`, `.tables` etc.
+
 Let's write the function that takes care of the meta commands (e.g. `.exit`, `.tables` etc).
 
 ```c
@@ -234,6 +233,8 @@ MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in) {
 }
 ```
 
+The function `sqlite_execute_meta_cmd` takes the pointer to the input buffer and returns either `META_COMMAND_FAILURE` or `META_COMMAND_SUCCESS` depending on whether the meta command was valid or not. We only handle 2 types of meta commands for now `.exit` and `.tables`. Other than these 2 commands any other command will be treated as unrecognized.
+
 The types are defined in the header file.
 
 ```c
@@ -242,4 +243,245 @@ typedef enum {
 	META_COMMAND_SUCCESS
 } MetaCmdResult;
 ```
+
+Till now the overall repl program is completely converted and it looks something like this -
+
+```c
+#include<stdbool.h>
+#include<stdlib.h>
+#include<stdio.h>
+
+#include "sqlite.h"
+
+int main(int argc, char* argv[]) {
+	InputBuffer *input = (InputBuffer*)malloc(sizeof(InputBuffer));	
+
+	while(true) {
+		sqlite_get_cmd(input);
+
+		// if it is meta command - .exit, .tables
+		if(input->buffer[0] == '.') {
+			switch(sqlite_execute_meta_cmd(input)) {
+				case META_COMMAND_SUCCESS:
+					continue;
+				case META_COMMAND_FAILURE:
+					fprintf(stderr, "Error: failed to execute the command '%s'\n", input->buffer);
+					continue;
+			}
+		}
+	}
+
+	sqlite_free_buffer(input);
+	return 0;
+}
+```
+
+We are using a `switch` statement to handle different outputs of the `sqlite_execute_meta_cmd` function. For success output, we continue otherwise we print an error and then proceed.
+
+Now with this program we can handle some commands coming to us. More precisely the meta commands will be handled. To complete sql compiler part that will give us a format to work with the database, we also need to handle sql statements. They are the main ingredients of any database to talk to the database and get the data.
+
+For now we will keep it simple. We will write a function `sqlite_execute_statement` that takes the pointer to input buffer and a `Statement` variable address. This function will decide based on the statement what type of statement it is. For now we handle `insert` and `select` type statement.
+
+```c
+CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
+	if(strncmp(in->buffer, "insert", 6) == 0) {
+		stat->type = STATEMENT_INSERT;
+		return COMPILE_SUCCESS;
+	}
+	else if(strncmp(in->buffer, "select", 6) == 0) {
+		stat->type = STATEMENT_SELECT;
+		return COMPILE_SUCCESS;
+	}
+	
+	return COMPILE_FAILURE;
+}
+```
+
+We can compare the input buffer with characters like `insert` and `select`. Depending on the match we either return `COMPILE_SUCCESS` if got some type otherwise return `COMPILE_FAILURE`.
+
+The types are defined in the header file -
+
+```c
+typedef enum {
+	STATEMENT_SELECT, 
+	STATEMENT_INSERT, 
+	STATEMENT_DELETE
+} StatementType;
+
+typedef struct {
+	StatementType type;
+} Statement;
+
+typedef enum {
+	COMPILE_FAILURE, 
+	COMPILE_SUCCESS
+} CompileResult;
+
+CompileResult sqlite_compile_statement(InputBuffer*, Statement*);
+```
+
+After we compile the statement into format that we can understand, we can move to the virtual machine that will execute the format into an operation on database.
+
+For that I am writing a function `sqlite_execute_statement` that takes the `Statement` address and process the statement for database operation. For now we will keep it simple and just print some simple message based on the type of statement.
+
+```c
+StatementExecResult sqlite_execute_statement(Statement *stat) {
+	switch(stat->type) {
+		case STATEMENT_INSERT:
+			fprintf(stdout, "INSERT operation will be implemented later\n");
+			return STATEMENT_EXECUTION_SUCCESS;
+
+		case STATEMENT_SELECT:
+			fprintf(stdout, "INSERT operation will be implemented later\n");
+			return STATEMENT_EXECUTION_SUCCESS;
+
+		default:
+			return STATEMENT_EXECUTION_FAILURE;
+	}
+}
+```
+
+The types are defined like the following -
+
+```c
+typedef enum {
+	STATEMENT_EXECUTION_FAILURE, 
+	STATEMENT_EXECUTION_SUCCESS
+} StatementExecResult;
+
+StatementExecResult sqlite_execute_statement(Statement*);
+```
+
+The function returns `STATEMENT_EXECUTION_FAILURE` on detecting any statement that it does not recognize otherwise it returns `STATEMENT_EXECUTION_SUCCESS`.
+
+After we have all the functions we can combine them in `main.c` like the following -
+
+```c
+#include<stdbool.h>
+#include<stdlib.h>
+#include<stdio.h>
+
+#include "sqlite.h"
+
+int main(int argc, char* argv[]) {
+	InputBuffer *input = (InputBuffer*)malloc(sizeof(InputBuffer));	
+
+	while(true) {
+		sqlite_get_cmd(input);
+
+		// if it is meta command - .exit, .tables
+		if(input->buffer[0] == '.') {
+			switch(sqlite_execute_meta_cmd(input)) {
+				case META_COMMAND_SUCCESS:
+					continue;
+				case META_COMMAND_FAILURE:
+					fprintf(stderr, "Error: failed to execute the command '%s'\n", input->buffer);
+					continue;
+			}
+		}
+
+		// if it is a sql statement
+		Statement statement;
+		switch(sqlite_compile_statement(input, &statement)) {
+			case COMPILE_SUCCESS:
+				break;
+			case COMPILE_FAILURE:
+				fprintf(stderr, "Error:  Unrecognized statement at the start of '%s'\n", input->buffer);
+				continue;
+		}
+
+		// execute the sql statement
+		switch(sqlite_execute_statement(&statement)) {
+			case STATEMENT_EXECUTION_SUCCESS:
+				fprintf(stdout, "Statement Executed.\n");
+				break;
+			case STATEMENT_EXECUTION_FAILURE:
+				continue;
+
+		}
+	}
+
+	sqlite_free_buffer(input);
+	return 0;
+}
+```
+
+## Simplest database example
+
+For learning purpose I will stick to an in-memory hard coded database. The database will look something like this -
+
+| Column    | Type        |
+| --------  | ----------- |
+| id        | int         |
+| username  | varchar(32) |
+| email     | varchar(256)|
+
+The database has multiple types and it has a very simple structure. Our goal for now is to build this table and access the contents. The table contains pages and every page stores the rows present in the table.
+
+The insert statement will look like this -
+```
+insert arup arup@thestartupcoder.com
+```
+
+We need to first take the input from command like. So, let's modify the `sqlite_compile_statement` function to support what we want. We need to change the `Statement` structure like following -
+```c
+#define USERNAME_MAX_SIZE 32
+#define EMAIL_MAX_SIZE 256
+typedef struct {
+	StatementType type;
+	int id;
+	char username[USERNAME_MAX_SIZE];
+	char email[EMAIL_MAX_SIZE];
+} Statement;
+```
+
+And the function will change to  this -
+
+```c
+CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
+	if(strncmp(in->buffer, "insert", 6) == 0) {
+		stat->type = STATEMENT_INSERT;	
+
+		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &stat->id, stat->username, stat->email);
+		if(args_to_insert != 3) {
+			return COMPILE_FAILURE;
+		}
+
+		return COMPILE_SUCCESS;
+	}
+	else if(strncmp(in->buffer, "select", 6) == 0) {
+		stat->type = STATEMENT_SELECT;
+		return COMPILE_SUCCESS;
+	}
+	
+	return COMPILE_FAILURE;
+}
+```
+
+I am using `sscanf` for formatted input as out statement has a format, and we know where our values are in that statement. Just like `scanf` it also returns the no of characters read. If the characters read is not equal to 3 then there is syntax error in the statement.
+
+Let's look at how we are going to execute the insert and select statements.
+
+When we execute the statement what we want to do. We will store the data in our table. But where is the table? Let's build one.
+
+Table will be a structure... but what are the members of these structure? A table has pages. So one member will be pages. Other data that we might need is the number of rows saved in the table.
+
+```c
+#define TABLE_MAX_PAGES 100
+typedef struct {
+	unsigned int n_rows;
+	void* pages[TABLE_MAX_PAGES];
+} Table;
+```
+
+Now the question is, how we are going to get those pages? One page is a collection of rows. We need to convert the row into an entity inside the page. `pages` inside a `Table` are pointers to a list of pages. Each page starts from some memory and inside each page the rows also start from some memory. We need to keep track of those things to read/write the pages from/to memory.
+
+We need to understand the size of each entry inside a row and their offset i.e where they start from in the memory if we access that row. Every column size can be calculated using `get_attribute_size` macro.
+
+```c
+#define get_attribute_size(Struct, Attribute) (sizeof(((Struct*)0)->Attribute))
+```
+
+NOTE: the macro is a little tricky but it is simply accessing a member of a structure and calculating it's size. By doing `(Struct*))` we are creating null pointer and accessing the member `Attribute` from it. It does not create any object in memory and let's us calculate the size of the attribute.
+
 
