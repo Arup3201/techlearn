@@ -6,6 +6,7 @@
 
 int main(int argc, char* argv[]) {
 	InputBuffer *input = (InputBuffer*)malloc(sizeof(InputBuffer));	
+	Table *table = (Table*)malloc(sizeof(Table));
 
 	while(true) {
 		sqlite_get_cmd(input);
@@ -31,11 +32,16 @@ int main(int argc, char* argv[]) {
 				continue;
 		}
 
-		// execute the sql statement
-		switch(sqlite_execute_statement(&statement)) {
+		// execute the sql Statement
+		switch(sqlite_execute_statement(&statement, table)) {
 			case STATEMENT_EXECUTION_SUCCESS:
 				fprintf(stdout, "Statement Executed.\n");
 				break;
+
+			case STATEMENT_EXECUTION_TABLE_FULL:
+				fprintf(stdout, "Table is full.\n");
+				break;
+
 			case STATEMENT_EXECUTION_FAILURE:
 				continue;
 

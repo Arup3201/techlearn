@@ -21,11 +21,16 @@ typedef enum {
 #define USERNAME_MAX_SIZE 32
 #define EMAIL_MAX_SIZE 256
 typedef struct {
-	StatementType type;
 	int id;
 	char username[USERNAME_MAX_SIZE];
 	char email[EMAIL_MAX_SIZE];
+} Row;
+
+typedef struct {
+	StatementType type;
+	Row row;
 } Statement;
+
 
 typedef enum {
 	COMPILE_FAILURE, 
@@ -33,7 +38,8 @@ typedef enum {
 } CompileResult;
 
 typedef enum {
-	STATEMENT_EXECUTION_FAILURE, 
+	STATEMENT_EXECUTION_FAILURE,
+	STATEMENT_EXECUTION_TABLE_FULL, 
 	STATEMENT_EXECUTION_SUCCESS
 } StatementExecResult;
 
@@ -44,6 +50,9 @@ typedef struct {
 	unsigned int n_rows;
 	void* pages[TABLE_MAX_PAGES];
 } Table;
+
+#define PAGE_SIZE 4096
+#define ROWS_PER_PAGE 100
 
 void sqlite_get_cmd(InputBuffer*);
 void sqlite_free_buffer(InputBuffer*);

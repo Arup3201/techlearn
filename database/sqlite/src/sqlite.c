@@ -5,13 +5,15 @@
 #include <string.h>
 
 
-const unsigned int ID_SIZE = get_attribute_size(Statement, id);
-const unsigned int USERNAME_SIZE = get_attribute_size(Statement, username);
-const unsigned int EMAIL_SIZE = get_attribute_size(Statement, email);
+const unsigned int ID_SIZE = get_attribute_size(Row, id);
+const unsigned int USERNAME_SIZE = get_attribute_size(Row, username);
+const unsigned int EMAIL_SIZE = get_attribute_size(Row, email);
 
 const unsigned int ID_OFFSET = 0;
 const unsigned int USERNAME_OFFSET = ID_SIZE + ID_OFFSET;
 const unsigned int EMAIL_OFFSET = USERNAME_SIZE + USERNAME_OFFSET;
+
+const unsigned int ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 
 void sqlite_get_cmd(InputBuffer *in) {
 	fprintf(stdout, "sqlite> ");
@@ -49,7 +51,7 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	if(strncmp(in->buffer, "insert", 6) == 0) {
 		stat->type = STATEMENT_INSERT;	
 
-		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &stat->id, stat->username, stat->email);
+		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &stat->row.id, stat->row.username, stat->row.email);
 		if(args_to_insert != 3) {
 			return COMPILE_FAILURE;
 		}
@@ -64,13 +66,49 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	return COMPILE_FAILURE;
 }
 
-StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
-	
+void serialize(Row* source, void* destination) {
+	memcpy(destination+ID_OFFSET, &source->id, ID_SIZE);
+	memcpy(destination+USERNAME_OFFSET, source->username, USERNAME_SIZE);
+	memcpy(destination+EMAIL_OFFSET, source->email, EMAIL_SIZE);
+}
 
+void deserialize(void* source, Row* destination) {
+	memcpy(&(destination->id), source+ID_OFFSET, ID_SIZE);
+	memcpy(destination->username, source+USERNAME_OFFSET, USERNAME_SIZE);
+	memcpy(destination->email, source+EMAIL_OFFSET, EMAIL_SIZE);
+}
+
+void* get_table_row(Table *table, int row_no) {
+	int page_no = row_no / ROWS_PER_PAGE;
+
+	void *page = table->pages[page_no];
+	if(page == NULL) {
+		page = table->pages[page_no] = malloc(PAGE_SIZE);
+	}
+
+	unsigned int row_offset = ROWS_PER_PAGE % row_no;
+	unsigned int byte_offset = row_offset * ROW_SIZE;
+
+	return page + byte_offset;
+}
+
+StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
+	if(table->n_rows >= ROWS_PER_PAGE * TABLE_MAX_PAGES) {
+		return STATEMENT_EXECUTION_TABLE_FULL;
+	}
+	
+	serialize(&(stat->row), get_table_row(table, table->n_rows));
+	table->n_rows += 1;
 	return STATEMENT_EXECUTION_SUCCESS;
 }
 
 StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
+	Row *r = (Row*)malloc(sizeof(Row));
+	for(int i=0; i<table->n_rows; i++) {
+		deserialize(get_table_row(table, i), r);
+		fprintf(stdout, "%d %s %s\n", r->id, r->username, r->email);
+	}
+
 	return STATEMENT_EXECUTION_SUCCESS;
 }
 
