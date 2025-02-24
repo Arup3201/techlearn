@@ -464,7 +464,7 @@ Let's look at how we are going to execute the insert and select statements.
 
 When we execute the statement what we want to do. We will store the data in our table. But where is the table? Let's build one.
 
-Table will be a structure... but what are the members of these structure? A table has pages. So one member will be pages. Other data that we might need is the number of rows saved in the table.
+Table will be a structure... but what are the members of these structure? A table has pages. So one member will be pages. Other data that we might need is the number of rows saved in the table so that when inserting a new row, we know where to insert it.
 
 ```c
 #define TABLE_MAX_PAGES 100
@@ -474,7 +474,7 @@ typedef struct {
 } Table;
 ```
 
-Now the question is, how we are going to get those pages? One page is a collection of rows. We need to convert the row into an entity inside the page. `pages` inside a `Table` are pointers to a list of pages. Each page starts from some memory and inside each page the rows also start from some memory. We need to keep track of those things to read/write the pages from/to memory.
+We have the `Table` which contains the pages. Because page is just a block of memory and we are storing the rows in it, we need to get some size and offset values so that memory access becomes easier.
 
 We need to understand the size of each entry inside a row and their offset i.e where they start from in the memory if we access that row. Every column size can be calculated using `get_attribute_size` macro.
 
@@ -482,6 +482,194 @@ We need to understand the size of each entry inside a row and their offset i.e w
 #define get_attribute_size(Struct, Attribute) (sizeof(((Struct*)0)->Attribute))
 ```
 
-NOTE: the macro is a little tricky but it is simply accessing a member of a structure and calculating it's size. By doing `(Struct*))` we are creating null pointer and accessing the member `Attribute` from it. It does not create any object in memory and let's us calculate the size of the attribute.
+NOTE: For me the macro was a little tricky but after looking at stackoverflow, I understood it is actually simply accessing a member of a structure and calculating it's size. By doing `(Struct*))` we are creating null pointer and accessing the member `Attribute` from it. It does not create any object in memory and let's us calculate the size of the attribute.
 
+Next we will calculate the size and offset of each member of the row. For that we need some constant size and offset calculations -
 
+```c
+const unsigned int ID_SIZE = get_attribute_size(Statement, id);
+const unsigned int USERNAME_SIZE = get_attribute_size(Statement, username);
+const unsigned int EMAIL_SIZE = get_attribute_size(Statement, email);
+
+const unsigned int ID_OFFSET = 0;
+const unsigned int USERNAME_OFFSET = ID_SIZE + ID_OFFSET;
+const unsigned int EMAIL_OFFSET = USERNAME_SIZE + USERNAME_OFFSET;
+```
+
+Offset values are for accessing individual members in a row. 
+
+We will use a `Row` structure to denote each row in the table. Each row contain the columns `id`, `username` and `email`.
+
+```c
+#define USERNAME_MAX_SIZE 32
+#define EMAIL_MAX_SIZE 256
+typedef struct {
+	int id;
+	char username[USERNAME_MAX_SIZE];
+	char email[EMAIL_MAX_SIZE];
+} Row;
+
+typedef struct {
+	StatementType type;
+	Row* row;
+} Statement;
+```
+
+For implementing the `insert` and `select` statement execution, we will first need to store the rows in a page. For that we need to serialize them into a block of memory which are pages. In the time of accessing the rows, we also need to deserialize them.
+
+```c
+void serialize(Row* source, void* destination) {
+	memcpy(destination+ID_OFFSET, &(source->id), ID_SIZE);
+	memcpy(destination+USERNAME_OFFSET, source->username, USERNAME_SIZE);
+	memcpy(destination+EMAIL_OFFSET, source->email, EMAIL_SIZE);
+}
+
+void deserialize(void* source, Row* destination) {
+	memcpy(&(destination->id), source+ID_OFFSET, ID_SIZE);
+	memcpy(destination->username, source+USERNAME_OFFSET, USERNAME_SIZE);
+	memcpy(destination->email, source+EMAIL_OFFSET, EMAIL_SIZE);
+}
+```
+
+Now we need to know where to read/write the row. Here we are working with a table that loads the pages when we need it. It does not store it inside any variable. But fortunately, we have stored it in the memory through serialize, so as long as we know where the memory is - we can access it and store it inside the table page.
+
+```c
+void* get_table_row(Table *table, int row_no) {
+	int page_no = row_no / ROWS_PER_PAGE;
+
+	void *page = table->pages[page_no];
+	if(page == NULL) {
+		page = table->pages[page_no] = malloc(PAGE_SIZE);
+	}
+
+	unsigned int row_offset = row_no % ROWS_PER_PAGE;
+	unsigned int byte_offset = row_offset * ROW_SIZE;
+
+	return page + byte_offset;
+}
+```
+
+This function will return the memory block starting address which can then be deserialized to get the `Row` object. Look at the code carefully and you will see that we are storing the row inside the table on the fly when we try to access it for the first time.
+
+With this we can now process the insert statement in the following way -
+
+```c
+StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
+	if(table->n_rows >= ROWS_PER_PAGE * TABLE_MAX_PAGES) {
+		return STATEMENT_EXECUTION_TABLE_FULL;
+	}
+	
+	serialize(&(stat->row), get_table_row(table, table->n_rows));
+	table->n_rows += 1;
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+```
+
+We have added one more type of `StatementExecResult` to denote table full error. Every insert will increase the table number of rows.
+
+We can also make the select statement which is easier than insert statement -
+
+```c
+StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
+	Row *r;
+	for(int i=0; i<table->n_rows; i++) {
+		deserialize(get_table_row(table, i), r);
+		fprintf(stdout, "%d %s %s\n", r->id, r->username, r->email);
+	}
+
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+```
+
+We just traverse all the rows from 0. Deserialize the row and print it.
+
+Now we just have to put all of them in the `main.c` file together. We also need to create objects for `Table` in the memory. So for that let's quickly create some functions that will help us make new `InputBuffer` and `Table`.
+
+```c
+InputBuffer* sqlite_new_input_buffer() {
+	InputBuffer* in = (InputBuffer*)malloc(sizeof(InputBuffer));
+	in->buffer = (char*)malloc(MAX_INPUT_LENGTH);
+	return in;
+}
+
+Table* sqlite_new_table() {
+	Table *table = (Table*)malloc(sizeof(Table));
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		table->pages[i] = NULL;
+	}
+	table->n_rows = 0;
+	return table;
+}
+```
+
+After everything together, we have the following function that will let us insert entries in our db and also show us the entries using select.
+
+```c
+#include<stdbool.h>
+#include<stdio.h>
+
+#include "sqlite.h"
+
+int main(int argc, char* argv[]) {
+	InputBuffer *input = sqlite_new_input_buffer();
+	Table *table = sqlite_new_table();
+	
+	while(true) {
+		sqlite_get_cmd(input);
+
+		// if it is meta command - .exit, .tables
+		if(input->buffer[0] == '.') {
+			switch(sqlite_execute_meta_cmd(input)) {
+				case META_COMMAND_SUCCESS:
+					continue;
+				case META_COMMAND_FAILURE:
+					fprintf(stderr, "Error: failed to execute the command '%s'\n", input->buffer);
+					continue;
+			}
+		}
+
+		// if it is a sql statement
+		Statement statement;
+		switch(sqlite_compile_statement(input, &statement)) {
+			case COMPILE_SUCCESS:
+				break;
+			case COMPILE_FAILURE:
+				fprintf(stderr, "Error:  Unrecognized statement at the start of '%s'\n", input->buffer);
+				continue;
+		}
+
+		// execute the sql Statement
+		switch(sqlite_execute_statement(&statement, table)) {
+			case STATEMENT_EXECUTION_SUCCESS:
+				fprintf(stdout, "Statement Executed.\n");
+				break;
+
+			case STATEMENT_EXECUTION_TABLE_FULL:
+				fprintf(stdout, "Table is full.\n");
+				break;
+
+			case STATEMENT_EXECUTION_FAILURE:
+				continue;
+
+		}
+	}
+
+	sqlite_free_buffer(input);
+	sqlite_free_table(table);
+	return 0;
+}
+```
+
+The output of the function will be like this -
+
+```sh
+sqlite> insert 1 arup arup@thestartupcoder.com
+Statement Executed.
+sqlite> insert 2 surendar surendar@email.com
+Statement Executed.
+sqlite> select
+1 arup arup@thestartupcoder.com
+2 surendar surendar@email.com
+Statement Executed.
+sqlite> .exit
+```

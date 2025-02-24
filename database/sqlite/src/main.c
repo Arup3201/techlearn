@@ -1,13 +1,12 @@
 #include<stdbool.h>
-#include<stdlib.h>
 #include<stdio.h>
 
 #include "sqlite.h"
 
 int main(int argc, char* argv[]) {
-	InputBuffer *input = (InputBuffer*)malloc(sizeof(InputBuffer));	
-	Table *table = (Table*)malloc(sizeof(Table));
-
+	InputBuffer *input = sqlite_new_input_buffer();
+	Table *table = sqlite_new_table();
+	
 	while(true) {
 		sqlite_get_cmd(input);
 
@@ -49,5 +48,6 @@ int main(int argc, char* argv[]) {
 	}
 
 	sqlite_free_buffer(input);
+	sqlite_free_table(table);
 	return 0;
 }

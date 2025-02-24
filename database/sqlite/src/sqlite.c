@@ -15,6 +15,21 @@ const unsigned int EMAIL_OFFSET = USERNAME_SIZE + USERNAME_OFFSET;
 
 const unsigned int ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 
+InputBuffer* sqlite_new_input_buffer() {
+	InputBuffer* in = (InputBuffer*)malloc(sizeof(InputBuffer));
+	in->buffer = (char*)malloc(MAX_INPUT_LENGTH);
+	return in;
+}
+
+Table* sqlite_new_table() {
+	Table *table = (Table*)malloc(sizeof(Table));
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		table->pages[i] = NULL;
+	}
+	table->n_rows = 0;
+	return table;
+}
+
 void sqlite_get_cmd(InputBuffer *in) {
 	fprintf(stdout, "sqlite> ");
 
@@ -51,7 +66,7 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	if(strncmp(in->buffer, "insert", 6) == 0) {
 		stat->type = STATEMENT_INSERT;	
 
-		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &stat->row.id, stat->row.username, stat->row.email);
+		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &(stat->row.id), stat->row.username, stat->row.email);
 		if(args_to_insert != 3) {
 			return COMPILE_FAILURE;
 		}
@@ -86,7 +101,7 @@ void* get_table_row(Table *table, int row_no) {
 		page = table->pages[page_no] = malloc(PAGE_SIZE);
 	}
 
-	unsigned int row_offset = ROWS_PER_PAGE % row_no;
+	unsigned int row_offset = row_no % ROWS_PER_PAGE;
 	unsigned int byte_offset = row_offset * ROW_SIZE;
 
 	return page + byte_offset;
@@ -129,4 +144,11 @@ StatementExecResult sqlite_execute_statement(Statement *stat, Table *table) {
 void sqlite_free_buffer(InputBuffer *in) {
 	free(in->buffer);
 	free(in);
+}
+
+void sqlite_free_table(Table* table) {
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		free(table->pages[i]);
+	}
+	free(table);
 }

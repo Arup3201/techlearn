@@ -1,6 +1,7 @@
 #ifndef SQLITE_H
 #define SQLITE_H
 
+#define MAX_INPUT_LENGTH 1024
 typedef struct {
 	char* buffer;
 	int length;
@@ -54,8 +55,11 @@ typedef struct {
 #define PAGE_SIZE 4096
 #define ROWS_PER_PAGE 100
 
+InputBuffer* sqlite_new_input_buffer();
+Table* sqlite_new_table();
 void sqlite_get_cmd(InputBuffer*);
 void sqlite_free_buffer(InputBuffer*);
+void sqlite_free_table(Table*);
 MetaCmdResult sqlite_execute_meta_cmd(InputBuffer*);
 CompileResult sqlite_compile_statement(InputBuffer*, Statement*);
 StatementExecResult sqlite_execute_statement(Statement*, Table*);
