@@ -20,11 +20,11 @@ typedef enum {
 } StatementType;
 
 #define USERNAME_MAX_SIZE 32
-#define EMAIL_MAX_SIZE 256
+#define EMAIL_MAX_SIZE 255
 typedef struct {
 	int id;
-	char username[USERNAME_MAX_SIZE];
-	char email[EMAIL_MAX_SIZE];
+	char username[USERNAME_MAX_SIZE+1];
+	char email[EMAIL_MAX_SIZE+1];
 } Row;
 
 typedef struct {
@@ -35,6 +35,8 @@ typedef struct {
 
 typedef enum {
 	COMPILE_FAILURE, 
+	COMPILE_INPUT_ERROR, 
+	COMPILE_SYNTAX_ERROR,
 	COMPILE_SUCCESS
 } CompileResult;
 

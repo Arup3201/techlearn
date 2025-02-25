@@ -673,3 +673,87 @@ sqlite> select
 Statement Executed.
 sqlite> .exit
 ```
+
+## Debugging and fixing bugs
+
+Although the code works as expected for inputs, we will face some issues when we try to do any of the following -
+
+1. If we try to put `username` with length equal to 32.
+2. If we try to put `email` with length equal to 255.
+3. If we try to put too long `username` or `email` then it should give us an error but it does not.
+4. Because we are using `sscanf` - buffer overflow may happen and the input might be written somewhere else.
+
+Let's tackle one at a time. Why the first 2 problem happen? It is because we are allowing exactly 32 or 255 character for `username` and `email`.
+```c
+#define USERNAME_MAX_SIZE 32
+#define EMAIL_MAX_SIZE 255
+typedef struct {
+	int id;
+	char username[USERNAME_MAX_SIZE+1];
+	char email[EMAIL_MAX_SIZE+1];
+} Row;
+```
+
+Now we have space to put the null character at the end, and it will not create any problem if the inputs are exactly same as their maximum possible length.
+
+But it would be better if we can inform the user of our database about the fact that their `username` or `email` are too long if that is the case.
+
+```c
+CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
+	if(strncmp(in->buffer, "insert", 6) == 0) {
+		stat->type = STATEMENT_INSERT;	
+
+		char* insert_keyword = strtok(in->buffer, " ");
+		char* id_string = strtok(NULL, " ");
+		char* username_string = strtok(NULL, " ");
+		char* email_string = strtok(NULL, " ");
+
+		if(id_string == NULL || username_string == NULL || email_string == NULL) {
+			fprintf(stderr, "Error: Invalid syntax for insert statement.\n");
+			return COMPILE_SYNTAX_ERROR;
+		}
+
+		if(strlen(username_string) > USERNAME_MAX_SIZE) {
+			fprintf(stderr, "Error: Invalid value found in insert statement.\n");
+			return COMPILE_INPUT_ERROR;
+		}
+
+		if(strlen(email_string) > EMAIL_MAX_SIZE) {
+			fprintf(stderr, "Error: Invalid value found in insert statement.\n");
+			return COMPILE_INPUT_ERROR;
+		}
+
+		stat->row.id = atoi(id_string);
+		strcpy(stat->row.username, username_string);
+		strcpy(stat->row.email, email_string);
+
+		return COMPILE_SUCCESS;
+	}
+	else if(strncmp(in->buffer, "select", 6) == 0) {
+		stat->type = STATEMENT_SELECT;
+		return COMPILE_SUCCESS;
+	}
+	
+	return COMPILE_FAILURE;
+}
+```
+
+`strtok` function will seperate the string using the delimeter passed as it's second argument. It might seem weird for the next 3 line. So, let me explain what is happening in case you are not familiar with `strtok` function.
+
+The function uses a static copy of the string that we passed first time. Then it keeps this string and evertime we pass `NULL` to it, it uses previous string and returns the next token after seperating.
+
+We also used another value `COMPILE_SYNTAX_ERROR` and another for string too long `COMPILE_INPUT_ERROR` to denote there is something with the input provided by the user.
+
+```sh
+sqlite> insert 1
+Error: Invalid syntax for insert statement.
+sqlite> insert 1 arup
+Error: Invalid syntax for insert statement.
+sqlite> insert 1 arup arup@thestartupcoder.com
+Statement Executed.
+sqlite> select
+1 arup arup@thestartupcoder.com
+Statement Executed.
+```
+
+
