@@ -5,14 +5,21 @@
 
 int main(int argc, char* argv[]) {
 	InputBuffer *input = sqlite_new_input_buffer();
-	Table *table = sqlite_new_table();
+
+	if(argc != 2) {
+		fprintf(stderr, "Error: needs a database file name\n");
+		return 1;
+	}
+
+	char* filename = argv[1];
+	Table *table = sqlite_open_db(filename);
 	
 	while(true) {
 		sqlite_get_cmd(input);
 
 		// if it is meta command - .exit, .tables
 		if(input->buffer[0] == '.') {
-			switch(sqlite_execute_meta_cmd(input)) {
+			switch(sqlite_execute_meta_cmd(input, table)) {
 				case META_COMMAND_SUCCESS:
 					continue;
 				case META_COMMAND_FAILURE:
@@ -48,6 +55,5 @@ int main(int argc, char* argv[]) {
 	}
 
 	sqlite_free_buffer(input);
-	sqlite_free_table(table);
 	return 0;
 }

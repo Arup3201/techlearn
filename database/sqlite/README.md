@@ -673,3 +673,242 @@ sqlite> select
 Statement Executed.
 sqlite> .exit
 ```
+
+## Persistence with disk
+
+The current program can insert the rows and read them from disk when the program is running. But after we close the program the data is lost. We need to insert the rows again.
+
+In this section, we will focus on how to store the data in the disk permanently and next time when we open it, we still can see the previously adds rows. Like SQLite we are going to persist the records by storing the database as a file.
+
+Right now we are serializing the row into a memory block, which we consider as `page`. We can use the same method but instead of saving it into memory, we will save it into a file.
+
+We will do all the operations with the page using a structure called `Pager`. Let's convert the code to use `Pager` now.
+
+Our structure for `Table` will now become the following -
+
+```c
+#define TABLE_MAX_PAGES 100
+typedef struct {
+	int file_descriptor;
+	unsigned int file_length;
+	void* pages[TABLE_MAX_PAGES];
+}Pager;
+
+typedef struct {
+	unsigned int n_rows;
+	Pager* pager;
+} Table;
+
+```
+
+Previosly we initialized the `Table` but now we need to do that to `Pager`. We need to -
+
+- Open a file provided by the user. This file will be used for saving the database.
+- Initialize the pager data structure and the table.
+
+Let's write a seperate function that takes care of the pager initialization after opening the file provided.
+
+```c
+Pager* sqlite_init_pager(char* filename) {
+	int fd = open(filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	if(fd == -1) {
+		fprintf(stderr, "Error: can't open file %s\n", filename);
+		exit(EXIT_FAILURE);
+	}
+	off_t file_length = lseek(fd, 0, SEEK_END);
+	
+	Pager *p = (Pager*)malloc(sizeof(Pager));
+	p->file_descriptor = fd;
+	p->file_length = file_length;
+
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		p->pages[i] = NULL;
+	}
+
+	return p;
+}
+```
+
+Next we will use this function to open our database (i.e. open the file where we are storing the database now) and then create a table working on this pager.
+
+```c
+Table* sqlite_open_db(char* filename) {
+	Pager *p = sqlite_init_pager(filename);
+	Table *table = (Table*)malloc(sizeof(Table));
+	table->pager = p;
+	table->n_rows = 0;
+	return table;
+}
+```
+
+Now, we have got the database started with the tables initialized. We need to also change the way we used to retrieve the pages. Now we will use pager to provide us the pages as we need it. Along with providing the pages, we are also adding caching. Caching here means the pages that we have tried to access after the program has been started will remain on the memory. When we need it we will get them without calculating where it is in the file. For the pages, we are trying to access for the first time - we will load them from the file.
+
+```c
+void* sqlite_get_page(Pager* pager, int page_no) {
+	if(pager->pages[page_no] != NULL) {
+		pager->pages[page_no] = malloc(PAGE_SIZE);
+
+		ssize_t num_pages = pager->file_length / PAGE_SIZE;
+		if(pager->file_length % PAGE_SIZE) {
+			num_pages += 1;
+		}
+
+		if(page_no <= num_pages) {
+			lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
+			ssize_t nbytes = read(pager->file_descriptor, pager->pages[page_no], PAGE_SIZE);
+			if(nbytes < 0) {
+				fprintf(stdout, "Error: pager can't read the contents of the page\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	return pager->pages[page_no];
+}
+
+```
+
+We can get the page if it already exists in the memory otherwise we get the page from the file. Let's use this function get the page.
+
+```c
+void* get_table_row(Table *table, int row_no) {
+	int page_no = row_no / ROWS_PER_PAGE;
+
+	void *page = sqlite_get_page(table->pager, page_no);
+
+	unsigned int row_offset = row_no % ROWS_PER_PAGE;
+	unsigned int byte_offset = row_offset * ROW_SIZE;
+
+	return page + byte_offset;
+}
+```
+
+Now the import part of this section is how do we close the database and make sure the next time we visit the database we have all our previous changes with us?
+
+For that we need to save the pages into the file before closing the pager. So, in this step we will do the following -
+
+- write the pages to file
+- free the pages
+- free the table
+- close the file that was opened by pager
+
+```c
+void sqlite_flush_page(Pager *pager, int page_no) {
+	if(TABLE_MAX_PAGES >= page_no) {
+		fprintf(stdout, "Error: trying to flush the page that does not exist\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(pager->pages[page_no] == NULL) {
+		return;
+	}
+
+	lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
+	ssize_t nbytes = write(pager->file_descriptor, pager->pages[page_no], PAGE_SIZE);
+	if(nbytes < 0) {
+		fprintf(stderr, "Error: failed to write page to database file when flushing\n");
+		exit(EXIT_FAILURE);
+	}
+
+	free(pager->pages[page_no]);
+}
+
+void sqlite_close_db(Table* table) {
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		sqlite_flush_page(table->pager, i);
+	}
+
+	close(table->pager->file_descriptor);
+	free(table->pager);
+	free(table);
+}
+```
+
+Before running the new code, I want to create a `Makefile` that I can run to build an executable instead of writing the whole command everytime.
+
+```make
+```
+
+I forgot to also make changes in the `main.c` file. In the `main.c` we are getting command like arguments for the filename.
+
+```c
+#include<stdbool.h>
+#include<stdio.h>
+
+#include "sqlite.h"
+
+int main(int argc, char* argv[]) {
+	InputBuffer *input = sqlite_new_input_buffer();
+
+	if(argc != 2) {
+		fprintf(stderr, "Error: needs a database file name\n");
+		return 1;
+	}
+
+	char* filename = argv[1];
+	Table *table = sqlite_open_db(filename);
+	
+	while(true) {
+		sqlite_get_cmd(input);
+
+		// if it is meta command - .exit, .tables
+		if(input->buffer[0] == '.') {
+			switch(sqlite_execute_meta_cmd(input, table)) {
+				case META_COMMAND_SUCCESS:
+					continue;
+				case META_COMMAND_FAILURE:
+					fprintf(stderr, "Error: failed to execute the command '%s'\n", input->buffer);
+					continue;
+			}
+		}
+
+		// if it is a sql statement
+		Statement statement;
+		switch(sqlite_compile_statement(input, &statement)) {
+			case COMPILE_SUCCESS:
+				break;
+			case COMPILE_FAILURE:
+				fprintf(stderr, "Error:  Unrecognized statement at the start of '%s'\n", input->buffer);
+				continue;
+		}
+
+		// execute the sql Statement
+		switch(sqlite_execute_statement(&statement, table)) {
+			case STATEMENT_EXECUTION_SUCCESS:
+				fprintf(stdout, "Statement Executed.\n");
+				break;
+
+			case STATEMENT_EXECUTION_TABLE_FULL:
+				fprintf(stdout, "Table is full.\n");
+				break;
+
+			case STATEMENT_EXECUTION_FAILURE:
+				continue;
+
+		}
+	}
+
+	sqlite_free_buffer(input);
+	return 0;
+}
+```
+
+Notice that we are also passing the `table` to `sqlite_execute_meta_cmd` so that at the time of `.exit` it will run the `sqlite_close_db`.
+
+```c
+MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in, Table *table) {
+	if(strcmp(in->buffer, ".exit") == 0) {
+		sqlite_close_db(table);
+		exit(EXIT_SUCCESS);
+	}
+
+	if(strcmp(in->buffer, ".tables") == 0) {
+		fprintf(stdout, "Tables will be fetched...\n");
+		return META_COMMAND_SUCCESS;
+	}
+	
+
+	fprintf(stderr, "Unrecognized command '%s'\n", in->buffer);
+	return META_COMMAND_FAILURE;
+}
+```

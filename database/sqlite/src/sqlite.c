@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <fcntl.h>
+#include <unistd.h>
 
 const unsigned int ID_SIZE = get_attribute_size(Row, id);
 const unsigned int USERNAME_SIZE = get_attribute_size(Row, username);
@@ -21,11 +22,29 @@ InputBuffer* sqlite_new_input_buffer() {
 	return in;
 }
 
-Table* sqlite_new_table() {
-	Table *table = (Table*)malloc(sizeof(Table));
-	for(int i=0; i<TABLE_MAX_PAGES; i++) {
-		table->pages[i] = NULL;
+Pager* sqlite_init_pager(char* filename) {
+	int fd = open(filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	if(fd == -1) {
+		fprintf(stderr, "Error: can't open file %s\n", filename);
+		exit(EXIT_FAILURE);
 	}
+	off_t file_length = lseek(fd, 0, SEEK_END);
+	
+	Pager *p = (Pager*)malloc(sizeof(Pager));
+	p->file_descriptor = fd;
+	p->file_length = file_length;
+
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		p->pages[i] = NULL;
+	}
+
+	return p;
+}
+
+Table* sqlite_open_db(char* filename) {
+	Pager *p = sqlite_init_pager(filename);
+	Table *table = (Table*)malloc(sizeof(Table));
+	table->pager = p;
 	table->n_rows = 0;
 	return table;
 }
@@ -47,8 +66,9 @@ void sqlite_get_cmd(InputBuffer *in) {
 	in->buffer[in->length] = '\0';
 }
 
-MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in) {
+MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in, Table *table) {
 	if(strcmp(in->buffer, ".exit") == 0) {
+		sqlite_close_db(table);
 		exit(EXIT_SUCCESS);
 	}
 
@@ -93,13 +113,32 @@ void deserialize(void* source, Row* destination) {
 	memcpy(destination->email, source+EMAIL_OFFSET, EMAIL_SIZE);
 }
 
+void* sqlite_get_page(Pager* pager, int page_no) {
+	if(pager->pages[page_no] != NULL) {
+		pager->pages[page_no] = malloc(PAGE_SIZE);
+
+		ssize_t num_pages = pager->file_length / PAGE_SIZE;
+		if(pager->file_length % PAGE_SIZE) {
+			num_pages += 1;
+		}
+
+		if(page_no <= num_pages) {
+			lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
+			ssize_t nbytes = read(pager->file_descriptor, pager->pages[page_no], PAGE_SIZE);
+			if(nbytes < 0) {
+				fprintf(stdout, "Error: pager can't read the contents of the page\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	return pager->pages[page_no];
+}
+
 void* get_table_row(Table *table, int row_no) {
 	int page_no = row_no / ROWS_PER_PAGE;
 
-	void *page = table->pages[page_no];
-	if(page == NULL) {
-		page = table->pages[page_no] = malloc(PAGE_SIZE);
-	}
+	void *page = sqlite_get_page(table->pager, page_no);
 
 	unsigned int row_offset = row_no % ROWS_PER_PAGE;
 	unsigned int byte_offset = row_offset * ROW_SIZE;
@@ -146,9 +185,32 @@ void sqlite_free_buffer(InputBuffer *in) {
 	free(in);
 }
 
-void sqlite_free_table(Table* table) {
-	for(int i=0; i<TABLE_MAX_PAGES; i++) {
-		free(table->pages[i]);
+void sqlite_flush_page(Pager *pager, int page_no) {
+	if(TABLE_MAX_PAGES >= page_no) {
+		fprintf(stdout, "Error: trying to flush the page that does not exist\n");
+		exit(EXIT_FAILURE);
 	}
+
+	if(pager->pages[page_no] == NULL) {
+		return;
+	}
+
+	lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
+	ssize_t nbytes = write(pager->file_descriptor, pager->pages[page_no], PAGE_SIZE);
+	if(nbytes < 0) {
+		fprintf(stderr, "Error: failed to write page to database file when flushing\n");
+		exit(EXIT_FAILURE);
+	}
+
+	free(pager->pages[page_no]);
+}
+
+void sqlite_close_db(Table* table) {
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		sqlite_flush_page(table->pager, i);
+	}
+
+	close(table->pager->file_descriptor);
+	free(table->pager);
 	free(table);
 }

@@ -48,19 +48,26 @@ typedef enum {
 
 #define TABLE_MAX_PAGES 100
 typedef struct {
-	unsigned int n_rows;
+	int file_descriptor;
+	unsigned int file_length;
 	void* pages[TABLE_MAX_PAGES];
+}Pager;
+
+typedef struct {
+	unsigned int n_rows;
+	Pager* pager;
 } Table;
 
 #define PAGE_SIZE 4096
 #define ROWS_PER_PAGE 100
 
 InputBuffer* sqlite_new_input_buffer();
-Table* sqlite_new_table();
+Pager* sqlite_init_pager(char*); // takes a filename and returns a Pager pointer after initilaizing it
+Table* sqlite_open_db(char*);
 void sqlite_get_cmd(InputBuffer*);
 void sqlite_free_buffer(InputBuffer*);
-void sqlite_free_table(Table*);
-MetaCmdResult sqlite_execute_meta_cmd(InputBuffer*);
+void sqlite_close_db(Table*);
+MetaCmdResult sqlite_execute_meta_cmd(InputBuffer*, Table*);
 CompileResult sqlite_compile_statement(InputBuffer*, Statement*);
 StatementExecResult sqlite_execute_statement(Statement*, Table*);
 
