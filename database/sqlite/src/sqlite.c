@@ -86,13 +86,38 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	if(strncmp(in->buffer, "insert", 6) == 0) {
 		stat->type = STATEMENT_INSERT;	
 
-		int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &(stat->row.id), stat->row.username, stat->row.email);
-		if(args_to_insert != 3) {
-			return COMPILE_FAILURE;
+		// buffer overflow problem with sscanf
+		// int args_to_insert = sscanf(in->buffer, "insert %d %s %s", &(stat->row.id), stat->row.username, stat->row.email);
+		// if(args_to_insert != 3) {
+		// 	return COMPILE_FAILURE;
+		// }
+
+		char* insert_keyword = strtok(in->buffer, " ");
+		char* id_string = strtok(NULL, " ");
+		char* username_string = strtok(NULL, " ");
+		char* email_string = strtok(NULL, " ");
+
+		if(id_string == NULL || username_string == NULL || email_string == NULL) {
+			fprintf(stderr, "Error: Invalid syntax for insert statement.\n");
+			return COMPILE_SYNTAX_ERROR;
 		}
 
-		return COMPILE_SUCCESS;
+		if(strlen(username_string) > USERNAME_MAX_SIZE) {
+			fprintf(stderr, "Error: Invalid value found in insert statement.\n");
+			return COMPILE_INPUT_ERROR;
 		}
+
+		if(strlen(email_string) > EMAIL_MAX_SIZE) {
+			fprintf(stderr, "Error: Invalid value found in insert statement.\n");
+			return COMPILE_INPUT_ERROR;
+		}
+
+		stat->row.id = atoi(id_string);
+		strcpy(stat->row.username, username_string);
+		strcpy(stat->row.email, email_string);
+
+		return COMPILE_SUCCESS;
+	}
 	else if(strncmp(in->buffer, "select", 6) == 0) {
 		stat->type = STATEMENT_SELECT;
 		return COMPILE_SUCCESS;

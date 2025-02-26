@@ -33,6 +33,13 @@ int main(int argc, char* argv[]) {
 		switch(sqlite_compile_statement(input, &statement)) {
 			case COMPILE_SUCCESS:
 				break;
+
+			case COMPILE_SYNTAX_ERROR:
+				continue;
+
+			case COMPILE_INPUT_ERROR:
+				continue;
+
 			case COMPILE_FAILURE:
 				fprintf(stderr, "Error:  Unrecognized statement at the start of '%s'\n", input->buffer);
 				continue;
