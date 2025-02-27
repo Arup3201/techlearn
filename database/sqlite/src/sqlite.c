@@ -1,10 +1,11 @@
 
 #include "sqlite.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include<stdlib.h>
+#include<stdio.h>
+#include<stdbool.h>
+#include<string.h>
+#include<fcntl.h>
+#include<unistd.h>
 
 const unsigned int ID_SIZE = get_attribute_size(Row, id);
 const unsigned int USERNAME_SIZE = get_attribute_size(Row, username);
@@ -45,7 +46,9 @@ Table* sqlite_open_db(char* filename) {
 	Pager *p = sqlite_init_pager(filename);
 	Table *table = (Table*)malloc(sizeof(Table));
 	table->pager = p;
-	table->n_rows = 0;
+
+	unsigned int nrows = p->file_length / ROW_SIZE;
+	table->n_rows = nrows;
 	return table;
 }
 
@@ -126,20 +129,26 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 	return COMPILE_FAILURE;
 }
 
-void serialize(Row* source, void* destination) {
+void sqlite_serialize(Row* source, void* destination) {
 	memcpy(destination+ID_OFFSET, &source->id, ID_SIZE);
 	memcpy(destination+USERNAME_OFFSET, source->username, USERNAME_SIZE);
 	memcpy(destination+EMAIL_OFFSET, source->email, EMAIL_SIZE);
 }
 
-void deserialize(void* source, Row* destination) {
+void sqlite_deserialize(void* source, Row* destination) {
 	memcpy(&(destination->id), source+ID_OFFSET, ID_SIZE);
 	memcpy(destination->username, source+USERNAME_OFFSET, USERNAME_SIZE);
 	memcpy(destination->email, source+EMAIL_OFFSET, EMAIL_SIZE);
 }
 
 void* sqlite_get_page(Pager* pager, int page_no) {
-	if(pager->pages[page_no] != NULL) {
+
+	if(page_no > TABLE_MAX_PAGES) {
+		fprintf(stderr, "Error: trying to access out of bound page\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(pager->pages[page_no] == NULL) {
 		pager->pages[page_no] = malloc(PAGE_SIZE);
 
 		ssize_t num_pages = pager->file_length / PAGE_SIZE;
@@ -160,7 +169,7 @@ void* sqlite_get_page(Pager* pager, int page_no) {
 	return pager->pages[page_no];
 }
 
-void* get_table_row(Table *table, int row_no) {
+void* sqlite_get_table_row(Table *table, int row_no) {
 	int page_no = row_no / ROWS_PER_PAGE;
 
 	void *page = sqlite_get_page(table->pager, page_no);
@@ -171,12 +180,13 @@ void* get_table_row(Table *table, int row_no) {
 	return page + byte_offset;
 }
 
+
 StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
 	if(table->n_rows >= ROWS_PER_PAGE * TABLE_MAX_PAGES) {
 		return STATEMENT_EXECUTION_TABLE_FULL;
 	}
 	
-	serialize(&(stat->row), get_table_row(table, table->n_rows));
+	sqlite_serialize(&(stat->row), sqlite_get_table_row(table, table->n_rows));
 	table->n_rows += 1;
 	return STATEMENT_EXECUTION_SUCCESS;
 }
@@ -184,7 +194,7 @@ StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *tabl
 StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
 	Row *r = (Row*)malloc(sizeof(Row));
 	for(int i=0; i<table->n_rows; i++) {
-		deserialize(get_table_row(table, i), r);
+		sqlite_deserialize(sqlite_get_table_row(table, i), r);
 		fprintf(stdout, "%d %s %s\n", r->id, r->username, r->email);
 	}
 
@@ -210,8 +220,8 @@ void sqlite_free_buffer(InputBuffer *in) {
 	free(in);
 }
 
-void sqlite_flush_page(Pager *pager, int page_no) {
-	if(TABLE_MAX_PAGES >= page_no) {
+void sqlite_flush_page(Pager *pager, int page_no, size_t page_size) {
+	if(page_no > TABLE_MAX_PAGES) {
 		fprintf(stdout, "Error: trying to flush the page that does not exist\n");
 		exit(EXIT_FAILURE);
 	}
@@ -221,7 +231,7 @@ void sqlite_flush_page(Pager *pager, int page_no) {
 	}
 
 	lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
-	ssize_t nbytes = write(pager->file_descriptor, pager->pages[page_no], PAGE_SIZE);
+	ssize_t nbytes = write(pager->file_descriptor, pager->pages[page_no], page_size);
 	if(nbytes < 0) {
 		fprintf(stderr, "Error: failed to write page to database file when flushing\n");
 		exit(EXIT_FAILURE);
@@ -231,9 +241,17 @@ void sqlite_flush_page(Pager *pager, int page_no) {
 }
 
 void sqlite_close_db(Table* table) {
-	for(int i=0; i<TABLE_MAX_PAGES; i++) {
-		sqlite_flush_page(table->pager, i);
+	// flush the pages which are filled with rows
+	unsigned int fully_filled_pages = table->n_rows / ROWS_PER_PAGE;
+	for(int i=0; i<fully_filled_pages; i++) {
+		sqlite_flush_page(table->pager, i, PAGE_SIZE);
 	}
+
+	// flush partially filled page 
+	// we put the new rows in a page after previous page is filled
+	// so we only have one partially filled page at the end
+	size_t partial_page_size = (table->n_rows % ROWS_PER_PAGE) * ROW_SIZE;
+	sqlite_flush_page(table->pager, fully_filled_pages, partial_page_size);
 
 	close(table->pager->file_descriptor);
 	free(table->pager);
