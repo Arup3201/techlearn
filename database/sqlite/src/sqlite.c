@@ -169,10 +169,11 @@ void* sqlite_get_page(Pager* pager, int page_no) {
 	return pager->pages[page_no];
 }
 
-void* sqlite_get_table_row(Table *table, int row_no) {
+void* sqlite_get_cursor_in_memory(Cursor *c) {
+	int row_no = c->row_num;
 	int page_no = row_no / ROWS_PER_PAGE;
-
-	void *page = sqlite_get_page(table->pager, page_no);
+	
+	void *page = sqlite_get_page(c->table->pager, page_no);
 
 	unsigned int row_offset = row_no % ROWS_PER_PAGE;
 	unsigned int byte_offset = row_offset * ROW_SIZE;
@@ -180,22 +181,49 @@ void* sqlite_get_table_row(Table *table, int row_no) {
 	return page + byte_offset;
 }
 
+Cursor* sqlite_get_end_cursor(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+	c->row_num = table->n_rows;
+	c->end_of_table = true;
+
+	return c;
+}
 
 StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
 	if(table->n_rows >= ROWS_PER_PAGE * TABLE_MAX_PAGES) {
 		return STATEMENT_EXECUTION_TABLE_FULL;
 	}
 	
-	sqlite_serialize(&(stat->row), sqlite_get_table_row(table, table->n_rows));
+	Cursor *c = sqlite_get_end_cursor(table);
+	sqlite_serialize(&(stat->row), sqlite_get_cursor_in_memory(c));
 	table->n_rows += 1;
 	return STATEMENT_EXECUTION_SUCCESS;
 }
 
+Cursor* sqlite_get_start_cursor(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+	c->row_num = 0;
+	c->end_of_table = (table->n_rows == 0);
+
+	return c;
+}
+
+
+void sqlite_cursor_advance(Cursor *c) {
+	c->row_num += 1;
+	if(c->row_num >= c->table->n_rows) c->end_of_table = true;
+}
+
 StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
 	Row *r = (Row*)malloc(sizeof(Row));
-	for(int i=0; i<table->n_rows; i++) {
-		sqlite_deserialize(sqlite_get_table_row(table, i), r);
+	Cursor *c = sqlite_get_start_cursor(table);
+
+	while(!(c->end_of_table)) {
+		sqlite_deserialize(sqlite_get_cursor_in_memory(c), r);
 		fprintf(stdout, "%d %s %s\n", r->id, r->username, r->email);
+		sqlite_cursor_advance(c);
 	}
 
 	return STATEMENT_EXECUTION_SUCCESS;

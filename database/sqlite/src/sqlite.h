@@ -1,6 +1,10 @@
 #ifndef SQLITE_H
 #define SQLITE_H
 
+#ifndef __STDBOOL_H
+#include<stdbool.h>
+#endif
+
 #define MAX_INPUT_LENGTH 1024
 typedef struct {
 	char* buffer;
@@ -59,6 +63,12 @@ typedef struct {
 	unsigned int n_rows;
 	Pager* pager;
 } Table;
+
+typedef struct {
+	Table *table;
+	int row_num;
+	bool end_of_table;
+} Cursor;
 
 #define PAGE_SIZE 4096
 #define ROWS_PER_PAGE 100

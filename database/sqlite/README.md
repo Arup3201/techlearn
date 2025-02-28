@@ -909,6 +909,8 @@ void sqlite_close_db(Table* table) {
 Before running the new code, I want to create a `Makefile` that I can run to build an executable instead of writing the whole command everytime.
 
 ```make
+main.out: main.c sqlite.c
+	gcc -o main.out main.c sqlite.c -Wall -Wextra
 ```
 
 I forgot to also make changes in the `main.c` file. In the `main.c` we are getting command like arguments for the filename.
@@ -995,3 +997,244 @@ MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in, Table *table) {
 }
 ```
 
+## Solving bugs in the persistence implementation
+
+In the implementation there are some bugs -
+Bug #1: After you insert some items, then exit the program. If you go again then you will not see anything.
+
+Bug #1 happens because everytime we initialize the table `n_rows` to 0. And in the select statement we traverse till the `n_rows`. So when initializing the table we need to initialize it to number of rows.
+
+```c
+Table* sqlite_open_db(char* filename) {
+	Pager *p = sqlite_init_pager(filename);
+	Table *table = (Table*)malloc(sizeof(Table));
+	table->pager = p;
+
+	unsigned int nrows = p->file_length / ROW_SIZE;
+	table->n_rows = nrows;
+	return table;
+}
+```
+
+Even if we do it, there is still a problem. Try to add some entries, run the program again and insert some entries. Next time when you try to see the rows, you will only see the entries you entered first time, all entries in the second run are gone.
+
+Actually when you try to add a new row after reopening it next time, the new row is stored in the following way -
+
+```sh
+sqlite> select
+1 a a@example.com
+2 b b@example.com
+0  
+0  
+0  
+0  
+0  
+0  
+0  
+0  
+0  
+0  
+0  
+3 c c@example.com
+```
+
+It happens because after running the program first time, next time the table has `pager.file_length / ROW_SIZE` number of rows which is not 2 but something else. It happes because when we tried to save the rows at the time of flushing the pages, we needed to carefully save the rows according pages which are full and which are not.
+
+So, we need to change the logic of the `sqlite_flush_pages` function for flushing full pages and partially filled pages.
+
+```c
+void sqlite_flush_page(Pager *pager, int page_no, size_t page_size) {
+	if(page_no > TABLE_MAX_PAGES) {
+		fprintf(stdout, "Error: trying to flush the page that does not exist\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(pager->pages[page_no] == NULL) {
+		return;
+	}
+
+	lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
+	ssize_t nbytes = write(pager->file_descriptor, pager->pages[page_no], page_size);
+	if(nbytes < 0) {
+		fprintf(stderr, "Error: failed to write page to database file when flushing\n");
+		exit(EXIT_FAILURE);
+	}
+
+	free(pager->pages[page_no]);
+}
+
+void sqlite_close_db(Table* table) {
+	// flush the pages which are filled with rows
+	unsigned int fully_filled_pages = table->n_rows / ROWS_PER_PAGE;
+	for(int i=0; i<fully_filled_pages; i++) {
+		sqlite_flush_page(table->pager, i, PAGE_SIZE);
+	}
+
+	// flush partially filled page 
+	// we put the new rows in a page after previous page is filled
+	// so we only have one partially filled page at the end
+	size_t partial_page_size = (table->n_rows % ROWS_PER_PAGE) * ROW_SIZE;
+	sqlite_flush_page(table->pager, fully_filled_pages, partial_page_size);
+
+	close(table->pager->file_descriptor);
+	free(table->pager);
+	free(table);
+}
+```
+
+Now it works as intended. Everytime we open the database it still contains the previous entries and we can also insert new entries and it works fine even then -
+
+```sh
+$ ./main.out test.db
+sqlite> insert 1 a a@example.com
+Statement Executed.
+sqlite> select
+1 a a@example.com
+Statement Executed.
+sqlite> .exit
+
+$ ./main.out test.db
+sqlite> select
+1 a a@example.com
+Statement Executed.
+sqlite> insert 2 b b@example.com
+Statement Executed.
+sqlite> select
+1 a a@example.com
+2 b b@example.com
+Statement Executed.
+```
+
+## Refactoring the code using cursor
+
+To make the operations more easier, we are introducing `Cursor` object that helps us in the following -
+
+- Delete a row pointer to by the cursor
+- Insert new row using cursor 
+- Modify the row pointer at by cursor
+- Search the table using ID and point to the row using cursor 
+
+We are going to do the following with cursor - 
+
+- Create a cursor that points to the beginning of the table 
+- Create a cursor that points to the end of the table 
+- Cursor can advance one row at a time 
+- Insert at end cursor
+- Select current cursor which starts from first row and advance till end 
+
+Let's start with selecting all the rows to see the table entries. We need a cursor that starts from the beginning. If the table contains no rows then the cursor is pointing at the end of the table otherwise it is not pointing at the end the table.
+
+```c
+Cursor* sqlite_get_start_cursor(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+	c->row_num = 0;
+	c->end_of_table = (table->n_rows == 0);
+
+	return c;
+}
+```
+
+To go to the next position in the table - we need to advance the cursor to the next row 
+
+```c
+void sqlite_cursor_advance(Cursor *c) {
+	c->row_num += 1;
+	if(c->row_num >= c->table->n_rows) c->end_of_table = true;
+}
+```
+
+Now we can get the row pointed by the cursor instead of using the table and row no -
+
+```c
+void* sqlite_get_cursor_in_memory(Cursor *c) {
+	int row_no = c->row_num;
+	int page_no = row_no / ROWS_PER_PAGE;
+	
+	void *page = sqlite_get_page(c->table->pager, page_no);
+
+	unsigned int row_offset = row_no % ROWS_PER_PAGE;
+	unsigned int byte_offset = row_offset * ROW_SIZE;
+
+	return page + byte_offset;
+}
+```
+
+After we get the starting cursor, we can go through the table until the cursor is not pointing at the end of the table -
+
+```c
+StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
+	Row *r = (Row*)malloc(sizeof(Row));
+	Cursor *c = sqlite_get_start_cursor(table);
+
+	while(!(c->end_of_table)) {
+		sqlite_deserialize(sqlite_get_cursor_in_memory(c), r);
+		fprintf(stdout, "%d %s %s\n", r->id, r->username, r->email);
+		sqlite_cursor_advance(c);
+	}
+
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+
+```
+
+Next we can use cursor for inserting at the end of the table. For adding at the end we need to create a cursor at the end like following -
+
+```c
+Cursor* sqlite_get_end_cursor(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+	c->row_num = table->n_rows;
+	c->end_of_table = true;
+
+	return c;
+}
+```
+
+Then we can use this end cursor to insert a row at the table -
+
+```c
+StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
+	if(table->n_rows >= ROWS_PER_PAGE * TABLE_MAX_PAGES) {
+		return STATEMENT_EXECUTION_TABLE_FULL;
+	}
+	
+	Cursor *c = sqlite_get_end_cursor(table);
+	sqlite_serialize(&(stat->row), sqlite_get_cursor_in_memory(c));
+	table->n_rows += 1;
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+```
+
+And as for the result... Everything works as it should -
+
+```sh
+$ ./main.out test.db
+sqlite> select
+Statement Executed.
+sqlite> insert 1 a arup@example.com
+Statement Executed.
+sqlite> select
+1 a arup@example.com
+Statement Executed.
+sqlite> insert 2 b bishal@example.com
+Statement Executed.
+sqlite> select
+1 a arup@example.com
+2 b bishal@example.com
+Statement Executed.
+sqlite> .exit
+
+$ ./main.out test.db
+sqlite> select
+1 a arup@example.com
+2 b bishal@example.com
+Statement Executed.
+sqlite> insert 3 c claint@example.com    
+Statement Executed.
+sqlite> select
+1 a arup@example.com
+2 b bishal@example.com
+3 c claint@example.com
+Statement Executed.
+```
