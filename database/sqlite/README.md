@@ -1238,3 +1238,34 @@ sqlite> select
 3 c claint@example.com
 Statement Executed.
 ```
+
+## Using B-Tree to manage the tables
+
+B-Tree is a data structure used by SQLite to manage both table and indexes. Here's the reason why a B-Tree is a good data structure for database -
+
+1. Searching for a particular value (logarithmic time)
+2. Inserting and deleting a value that you already found is fast
+3. Traversing a range of values is fast 
+
+Following diagram represents a B-Tree -
+
+![B-Tree Diagram](https://en.wikipedia.org/wiki/File:B-tree.svg)
+
+Unlike binary tree where only 2 max children of every node, b-tree can have m children. To make a b-tree balanced every internal node should atleast have m/2 (upper limit) children.
+
+Before we dive into implementing the SQLite using B-Tree let's understand some concepts of B-Tree and how to implement their operation so that we can build our table and indices in SQLite.
+
+### Concepts related to b-tree
+
+In a Binary Seach Tree (BST), one node can have at most 2 children and 1 value/key inside it. But in case of b-tree, there can be more than 2 children and there could be more than 1 key/value inside that node depending on the order (m) of the b-tree.
+
+In BST, the leaf nodes can be on different levels - but in b-tree all the nodes will be in the same node. That is why it is also a balanced m order tree.
+
+In b-tree following rules are followed - 
+
+1. Every node can have max m children
+2. Root node can have min 2 children, leaf node can have min 0 children, and internal node can have min ceil(m/2) children 
+3. Every node can have max m-1 keys/values inside it 
+4. Root node can have min 1 key, other nodes can have ceil(m/2)-1 keys/values in them 
+
+
