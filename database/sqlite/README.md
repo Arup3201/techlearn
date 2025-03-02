@@ -1268,4 +1268,5 @@ In b-tree following rules are followed -
 3. Every node can have max m-1 keys/values inside it 
 4. Root node can have min 1 key, other nodes can have ceil(m/2)-1 keys/values in them 
 
+Let's look at some of the concepts for inserting a node at a b-tree. It has some scenarios for when inserting a node -
 
