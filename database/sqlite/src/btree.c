@@ -86,26 +86,41 @@ BNode* new_btee_node() {
 	return node;
 }
 
-int insert_key(BNode *node, int key) {
-	if(node->n_keys >= m-1) {
-		return 0;
+int binary_search(int arr[], int n, int k) {
+	int l=0, h=n-1;
+	int index = -1;
+	while(l<=h) {
+		int mid = (h-l)/2 + l;
+		if(arr[mid] > k) {
+			h = mid - 1;
+		}
+		else {
+			index = mid;
+			l = mid + 1;
+		}
 	}
 
-	node->keys[node->n_keys] = key;
-	node->n_keys += 1;
-	return 1;
+	return index;
 }
 
-void insert(BNode **head, int key) {
-	BNode *current_head = *head;
-	if(current_head == NULL) {
-		BNode *node = new_btee_node();
-		if(insert_key(node, key) == 0) {
-			// find the middle key and make it the parent
-		}
+void insert_key_to_node(BNode *node, int key, int pos) {
 
-		*head = node;
+}
+
+BNode* insert(BNode *head, int key) {
+	BNode *node = new_btee_node();
+	if(head == NULL) {
+		node->keys[0] = key;
+		node->n_keys = 1;
+		return node;
 	}
+
+	// find the leaf node to add the key 
+	int pos = binary_search(node->keys, node->n_keys, key);
+	if(key < node->keys[pos] && node->children[pos] != NULL) insert(node->children[pos], key);
+	else if(key < node->keys[pos] && node->children[pos] == NULL) insert_key_to_node(node, key, pos);
+	else if(key >= node->keys[pos] && node->children[pos] != NULL) insert(node->children[pos+1], key);
+	else if(key >= node->keys[pos] && node->children[pos] == NULL) insert_key_to_node(node, key, pos+1);
 }
 
 void print_btree(BNode *current) {
@@ -130,7 +145,7 @@ int main() {
 	int n=2;
 	int keys[2] = {1, 2};
 	BNode *head = NULL;
-	for(int i=0; i<n; i++) insert(&head, keys[i]);
+	for(int i=0; i<n; i++) head = insert(head, keys[i]);
 	print_btree(head);
 	printf("\n");
 	// free_btree(head);
