@@ -1255,18 +1255,54 @@ Unlike binary tree where only 2 max children of every node, b-tree can have m ch
 
 Before we dive into implementing the SQLite using B-Tree let's understand some concepts of B-Tree and how to implement their operation so that we can build our table and indices in SQLite.
 
-### Concepts related to b-tree
+### Concepts of B-Tree 
 
-In a Binary Seach Tree (BST), one node can have at most 2 children and 1 value/key inside it. But in case of b-tree, there can be more than 2 children and there could be more than 1 key/value inside that node depending on the order (m) of the b-tree.
+B-Tree is a balanced tree which is the generalized version of the binary search tree. It is a self-balancing tree data structure that allows search, insert and delete operation in logarithmic time. Unlike other self-balancing trees B-Tree is suited for storage systems that read and write large amount of data from memory like database and file systems.
 
-In BST, the leaf nodes can be on different levels - but in b-tree all the nodes will be in the same node. That is why it is also a balanced m order tree.
+A b-tree has 3 types of nodes -
 
-In b-tree following rules are followed - 
+- root node
+- internal node 
+- leaf node
 
-1. Every node can have max m children
-2. Root node can have min 2 children, leaf node can have min 0 children, and internal node can have min ceil(m/2) children 
-3. Every node can have max m-1 keys/values inside it 
-4. Root node can have min 1 key, other nodes can have ceil(m/2)-1 keys/values in them 
+A b-tree with of degree m has the following properties -
 
-Let's look at some of the concepts for inserting a node at a b-tree. It has some scenarios for when inserting a node -
+1. Every node has atmost m children
+2. All leaf nodes appear at the same level
+3. Every node except the root and leaf node has atleast $\ceil_(m/2)$ children
+4. Root node has atleast 2 children unless it is a leaf node 
+5. A non-leaf node with k children has k-1 keys 
+
+For more information related to B-Tree look at [Wikipedia](https://en.wikipedia.org/wiki/B-tree).
+
+A b-tree of order 5 looks like the following -
+
+![B-Tree of order 5](https://en.wikipedia.org/wiki/B-tree#/media/File:B-tree.svg)
+
+Some notations -
+- $K$ - maximum number of potential search keys in the node 
+- $k_{i}$ - search key at the 0-based node index 
+- $pt_{i}$ - pointer to the i-th child that starts the sub-tree
+- $pr_{i}$ - pointer to the record which stores the data for key $k_i$
+
+The node structure of each type of nodes -
+
+**Internal node**
+
+$[pt_0, k_0, pt_1, pr_0, k_1, pt_2, pr_1, k_2, pt_3, pr_2, ..., k_i, pt_{i+1}, pr_i, ..., k_{K-1}, pt_{K}, pr_{K-1}]$
+
+1. when $k_0$ exists - $pt_0}$ exists and points to the sub-tree where all keys are less than $k_0$.
+2. when $k_i$ and $k_{i-1}$ exists - $pt_{i} will exist and point to a sub-tree which has keys less than $k_i$ and greater than $k_{i-1}$
+3. when $k_{i-1}$ exist and $k_{i}$ does not exist - $pt_{i}$ will point to a sub-tree which has keys greater than $k_{i-1}$
+4. when $k_{i-1}$ and $k_{i-1}$ does not exist - $pt_{i}$ will be empty
+5. when $k_i$ exist - $pr_{i}$ will exist and point to a record which has the same value as $k_i$
+6. when $k_i$ does not exist - $pr_i$ can't exist
+
+**Leaf node**
+
+$[pr_0, k_0, pr_1, k_1, ..., pr_{K-1}, k_{K-1}]$
+
+1. when $k_i$ exist $pr_i$ points to a record of same value as $k_i$
+2. when $k_i$ does not exist, $pr_i$ will be empty 
+
 
