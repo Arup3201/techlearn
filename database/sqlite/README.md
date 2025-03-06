@@ -1305,4 +1305,7 @@ $[pr_0, k_0, pr_1, k_1, ..., pr_{K-1}, k_{K-1}]$
 1. when $k_i$ exist $pr_i$ points to a record of same value as $k_i$
 2. when $k_i$ does not exist, $pr_i$ will be empty 
 
+A point to note here - 
 
+- Any internal node that is full need to be split before we can add any key. Same is true for root, we need to split the node first and then we get some space to add the key.
+- The leaf node contains actual data, any internal node contains pointers to those data. When inserting keys, we need to insert the actual data at the leaf node, because of which will same values might be shown at internal node and leaf node.
