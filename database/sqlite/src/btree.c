@@ -87,13 +87,12 @@ BNode* new_btee_node() {
 	return node;
 }
 
-BNode* insert(BNode *head, int key) {
+void insert(BNode *head, int key) {
 	if(head == NULL) {
 		// b-tree is empty
 		BNode *node = new_btee_node();
 		node->keys[0] = key;
 		node->n_keys = 1;
-		return node;
 	}
 
 	// find where the key can be found
@@ -112,7 +111,6 @@ BNode* insert(BNode *head, int key) {
 			for(int j=i+1; j<=head->n_keys; j++) head->keys[j] = head->keys[j-1];
 			head->keys[i] = key;
 			head->n_keys += 1;
-			return head;
 		} else {
 			// root node which is full
 
@@ -143,7 +141,6 @@ BNode* insert(BNode *head, int key) {
 			new_root->children[0] = head;
 			new_root->children[1] = splitted_right_child;
 
-			return new_root;
 		}
 	}
 
@@ -183,14 +180,12 @@ BNode* insert(BNode *head, int key) {
 			head->keys[i] = keys[median_index];
 			head->n_keys += 1;
 			head->children[i+1] = splitted_right_child;
-			return head;
 		} else {
 			// parent is full 
 		}
 	}
 
-	head->children[i] = insert(head->children[i], key);
-	return head;
+	insert(head->children[i], key);
 }
 
 void print_btree(BNode *current) {
@@ -215,7 +210,7 @@ int main() {
 	int keys[] = {5, 3, 10, 20, 12, 60};
 	int n = sizeof(keys)/sizeof(keys[0]);
 	BNode *head = NULL;
-	for(int i=0; i<n; i++) head = insert(head, keys[i]);
+	for(int i=0; i<n; i++) insert(head, keys[i]);
 	print_btree(head);
 	printf("\n");
 	// free_btree(head);
