@@ -52,7 +52,7 @@ void insert_not_full(BTree *tree, BNode *node, int key) {
 			// after splitting the children
 			// we have another key at i+1
 			// if key is >= keys[i+1] then we look at the new right child which is at i+2
-			if(key >= node->keys[i+1]) i++;
+			if(key>node->keys[i+1]) i++;
 		}
 
 		insert_not_full(tree, node->children[i+1], key);
@@ -86,27 +86,34 @@ void split_child(BTree *tree, BNode *parent, BNode *child, int child_index) {
 
 	if(!right_child->is_leaf) {
 		j = 0;
-		while(j<min_keys+1){
-			right_child->children[j] = child->children[j+min_keys+1];
+		while(j<=min_keys){
+			right_child->children[j] = child->children[j+min_keys];
 			child->children[j+min_keys] = NULL;
 			j++;
 		}
 	}
-	
-	// shift the keys of parent to right from child_index
+
+	// shift the keys of parent to right starting from child_index
 	// place the key at child index of parent
 	j=child_index;
 	while(j<parent->n_keys) {
 		parent->keys[j+1] = parent->keys[j];
 		j++;
 	}
-	parent->keys[child_index] = right_child->keys[0];
+	parent->keys[child_index] = child->keys[min_keys-1];
 	parent->n_keys += 1;
+
+	// shift the children to right starting from child_index+1
+	j = child_index+1;
+	while(j<parent->n_keys+1) {
+		parent->children[j+1] = parent->children[j];
+		j++;
+	}
+	parent->children[child_index+1] = right_child;
 }
 
 
 void insert(BTree *tree, int key) {
-	printf("inserting %d\n", key);
 	if(tree->root ==  NULL) {
 		// btree is empty
 		BNode *node = new_btee_node(tree->degree, true);
@@ -122,24 +129,20 @@ void insert(BTree *tree, int key) {
 		// split the root into two children
 	
 		BNode *new_root = new_btee_node(tree->degree, false);
+		new_root->children[0] = tree->root;
 		split_child(tree, new_root, tree->root, 0);
 
 		// find which child will have the key
 		// new root has only one key
 		int i=0;
-		if(key >= new_root->keys[i]) i++;
+		if(key>new_root->keys[i]) i++;
 		insert_not_full(tree, new_root->children[i], key);
 		
 		tree->root = new_root;
 		return;
 	}
 
-	if(tree->root->is_leaf) {
-		// btree is not empty 
-		// root is not full
-		// root is a leaf node
-		insert_not_full(tree, tree->root, key);
-	}
+	insert_not_full(tree, tree->root, key);
 }
 
 void traverse(BNode *current) {
@@ -164,8 +167,10 @@ void traverse(BNode *current) {
 void free_btree(BNode *current) {
 	if(current == NULL) return;
 
-	for(int i=0; i<current->n_keys+1; i++) free_btree(current->children[i]);
-
+	for(int i=0; i<current->n_keys+1; i++) { 
+		free_btree(current->children[i]);
+	}
+	
 	free(current->keys);
 	free(current->children);
 	free(current);
@@ -180,7 +185,7 @@ int main() {
 
 	traverse(tree->root);
 
-	free_btree(tree->root);
+	// free_btree(tree->root);
 	free(tree);
 	return 0;
 }
