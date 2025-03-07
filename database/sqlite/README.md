@@ -1308,4 +1308,7 @@ $[pr_0, k_0, pr_1, k_1, ..., pr_{K-1}, k_{K-1}]$
 A point to note here - 
 
 - Any internal node that is full need to be split before we can add any key. Same is true for root, we need to split the node first and then we get some space to add the key.
-- The leaf node contains actual data, any internal node contains pointers to those data. When inserting keys, we need to insert the actual data at the leaf node, because of which will same values might be shown at internal node and leaf node.
+- Although the idea scenario is when the nodes that we try to insert do not have any space left we split it. But for implementation simplicity we split it before it. This makes the btree a little different than what it ideally would be but the end result remains same. And the main motive of searching will still give the same result.
+- When we try to insert any key, they will be will be inserted at the leaf. All keys are present in the leaf, any value in the internal node is just a path to reach that leaf node which contains the key and data related to that key.
+
+
