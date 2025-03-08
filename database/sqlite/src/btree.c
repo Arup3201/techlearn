@@ -12,7 +12,7 @@ BTree* new_btree(int d) {
 	return tree;
 }
 
-BNode* new_btee_node(int degree, bool is_leaf) {
+BNode* new_btree_node(int degree, bool is_leaf) {
 	BNode *node = (BNode*)malloc(sizeof(BNode));
 	node->keys = (int*)calloc(sizeof(int), (degree-1));
 	node->children = (BNode**)calloc(sizeof(BNode*), degree);
@@ -27,23 +27,29 @@ BNode* new_btee_node(int degree, bool is_leaf) {
  * the node is not full - it has less than m-1 keys. m is the degree of the btree
  */
 void insert_not_full(BTree *tree, BNode *node, int key) {
-	// find the smallest key at i which is >= `key`
-	// if no key is bigger then the key will be added at the end
-	// key will be added at i+1
-	// following loop is also shifting the keys to right and making space for the new key
 	int i=node->n_keys-1;
-	while(i>=0 && key<=node->keys[i]) {
-		node->keys[i+1] = node->keys[i];
-		i--;
-	}
-	
+
 	if(node->is_leaf) {
+		// find the smallest key at i which is >= `key`
+		// if no key is bigger then the key will be added at the end
+		// key will be added at i+1
+		// following loop is also shifting the keys to right and making space for the new key
+		while(i>=0 && key<=node->keys[i]) {
+			node->keys[i+1] = node->keys[i];
+			i--;
+		}
+
 		node->keys[i+1] = key;
 		node->n_keys += 1;
 	} else {
 		// before recursively calling this function for it's children
 		// check whether the child is full or not
 		// if full then we need to split it
+
+		// find the child where key can be found - it is i+1
+		while(i>=0 && key<=node->keys[i]) {
+			i--;
+		}
 		
 		if(node->children[i+1]->n_keys == tree->degree-1) {
 			// child is full
@@ -70,7 +76,7 @@ void insert_not_full(BTree *tree, BNode *node, int key) {
  * **NOTE** `parent` should not be full when calling this function to split child
  */
 void split_child(BTree *tree, BNode *parent, BNode *child, int child_index) {
-	BNode *right_child = new_btee_node(tree->degree, child->is_leaf);
+	BNode *right_child = new_btree_node(tree->degree, child->is_leaf);
 
 	// minimum number of keys for nodes except root node
 	int min_keys = ceil(tree->degree / 2.0) - 1;
@@ -116,7 +122,7 @@ void split_child(BTree *tree, BNode *parent, BNode *child, int child_index) {
 void insert(BTree *tree, int key) {
 	if(tree->root ==  NULL) {
 		// btree is empty
-		BNode *node = new_btee_node(tree->degree, true);
+		BNode *node = new_btree_node(tree->degree, true);
 		node->keys[0] = key;
 		node->n_keys = 1;
 	
@@ -128,7 +134,7 @@ void insert(BTree *tree, int key) {
 		// root is full
 		// split the root into two children
 	
-		BNode *new_root = new_btee_node(tree->degree, false);
+		BNode *new_root = new_btree_node(tree->degree, false);
 		new_root->children[0] = tree->root;
 		split_child(tree, new_root, tree->root, 0);
 
@@ -167,25 +173,34 @@ void traverse(BNode *current) {
 void free_btree(BNode *current) {
 	if(current == NULL) return;
 
-	for(int i=0; i<current->n_keys+1; i++) { 
+	if(current->is_leaf) {
+		free(current->keys);
+		free(current->children);
+		free(current);
+		return;
+	}
+
+	for(int i=0; i<=current->n_keys; i++) {
 		free_btree(current->children[i]);
 	}
-	
+
 	free(current->keys);
 	free(current->children);
 	free(current);
 }
 
 int main() {
-	int keys[] = {5, 3, 7, 1, 40, 20, 10};
+	// int keys[] = {5, 3, 7, 1, 40, 20, 10, 59, 46, 23, 90, 2, 124};
+	int keys[] = {5, 3, 7, 1, 40};
 	int n = sizeof(keys)/sizeof(keys[0]);
 	
 	BTree *tree = new_btree(3);
 	for(int i=0; i<n; i++) insert(tree, keys[i]);
 
 	traverse(tree->root);
+	printf("\n");
 
-	// free_btree(tree->root);
+	free_btree(tree->root);
 	free(tree);
 	return 0;
 }
