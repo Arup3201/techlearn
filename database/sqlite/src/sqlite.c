@@ -6,6 +6,7 @@
 #include<string.h>
 #include<fcntl.h>
 #include<unistd.h>
+#include<inttypes.h>
 
 const unsigned int ID_SIZE = get_attribute_size(Row, id);
 const unsigned int USERNAME_SIZE = get_attribute_size(Row, username);
@@ -16,6 +17,14 @@ const unsigned int USERNAME_OFFSET = ID_SIZE + ID_OFFSET;
 const unsigned int EMAIL_OFFSET = USERNAME_SIZE + USERNAME_OFFSET;
 
 const unsigned int ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
+
+// common node headers
+const unsigned NODE_TYPE_SIZE = sizeof(uint32_t);
+const unsigned NODE_TYPE_OFFSET = 0;
+const unsigned NODE_IS_LEAF_SIZE = sizeof(bool);
+const unsigned NODE_IS_LEAF_OFFSET = NODE_TYPE_SIZE + NODE_TYPE_OFFSET;
+const unsigned COMMON_NODE_SIZE = NODE_TYPE_SIZE + NODE_IS_LEAF_SIZE;
+
 
 InputBuffer* sqlite_new_input_buffer() {
 	InputBuffer* in = (InputBuffer*)malloc(sizeof(InputBuffer));
