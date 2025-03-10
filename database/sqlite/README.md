@@ -1287,13 +1287,50 @@ Whereas tree data structure can give better efficiency when it comes to searchin
 
 We will use direct memory access to retrive, store or delete rows. For that we need to calculate the size of each block in a node. The values are stored in the leaf node, and the internal nodes will store the keys. 
 
-Every node has some headers that shows information about the node. Like what type of node it is, how many keys are present or whether it is a leaf or not etc.
+Every node has some headers that shows information about the node -
+
+- what type of node it is? internal / leaf node
+- whether it is the root node or not?
+- a pointer to it's parent
+
+Every internal node will point to a child node that stores the rows. The internal node will store the page number and we will use this page number to find the leaf node which stores the rows of that page.
+
+A leaf node needs some more headers -
+
+- how many cells are there in the leaf node? Here, cells represent key/value pairs.
+
+Following are the common headers of all types of node in a btree -
 
 ```c
-// common node headers
-const unsigned NODE_TYPE_SIZE = sizeof(uint32_t);
-const unsigned NODE_TYPE_OFFSET = 0;
-const unsigned NODE_IS_LEAF_SIZE = sizeof(bool);
-const unsigned NODE_IS_LEAF_OFFSET = NODE_TYPE_SIZE + NODE_TYPE_OFFSET;
-const unsigned COMMON_NODE_SIZE = NODE_TYPE_SIZE + NODE_IS_LEAF_SIZE;
+const uint32_t NODE_TYPE_SIZE = sizeof(uint8_t);
+const uint32_t NODE_TYPE_OFFSET = 0;
+const uint32_t IS_ROOT_SIZE = sizeof(uint8_t);
+const uint32_t IS_ROOT_OFFSET = NODE_TYPE_OFFSET + NODE_TYPE_SIZE;
+const uint32_t PARENT_POINTER_SIZE = sizeof(uint32_t);
+const uint32_t PARENT_POINTER_OFFSET = IS_ROOT_OFFSET + IS_ROOT_SIZE;
+const uint32_t COMMON_NODE_HEADER_SIZE = NODE_TYPE_SIZE + IS_ROOT_SIZE + PARENT_POINTER_SIZE;
 ```
+
+Every leaf node will have some additional headers like the number of cells associated in that node -
+
+```c
+const uint32_t LEAF_NODE_NUM_CELLS_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_NUM_CELLS_OFFSET = COMMON_NODE_HEADER_SIZE + 0;
+const uint32_t LEAF_NODE_HEADER_SIZE = COMMON_NODE_HEADER_SIZE + LEAF_NODE_NUM_CELLS_SIZE;
+```
+
+Now we will define the body of a leaf node -
+
+```c
+const uint32_t LEAF_NODE_KEY_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_KEY_OFFSET = LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_VALUE_SIZE = ROW_SIZE;
+const uint32_t LEAF_NODE_VALUE_OFFSET = LEAF_NODE_KEY_SIZE + LEAF_NODE_KEY_OFFSET;
+const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
+const uint32_t LEAF_NODE_CELL_SPACE = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_MAX_CELLS = LEAF_NODE_CELL_SPACE / LEAF_NODE_CELL_SIZE;
+```
+
+Every field in the node has some offset value which we can add to get that field in that node memory block.
+
+

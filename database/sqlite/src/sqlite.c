@@ -1,5 +1,4 @@
-
-#include "sqlite.h"
+#include <stdint.h>
 #include<stdlib.h>
 #include<stdio.h>
 #include<stdbool.h>
@@ -7,6 +6,8 @@
 #include<fcntl.h>
 #include<unistd.h>
 #include<inttypes.h>
+
+#include "sqlite.h"
 
 const unsigned int ID_SIZE = get_attribute_size(Row, id);
 const unsigned int USERNAME_SIZE = get_attribute_size(Row, username);
@@ -19,12 +20,44 @@ const unsigned int EMAIL_OFFSET = USERNAME_SIZE + USERNAME_OFFSET;
 const unsigned int ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 
 // common node headers
-const unsigned NODE_TYPE_SIZE = sizeof(uint32_t);
-const unsigned NODE_TYPE_OFFSET = 0;
-const unsigned NODE_IS_LEAF_SIZE = sizeof(bool);
-const unsigned NODE_IS_LEAF_OFFSET = NODE_TYPE_SIZE + NODE_TYPE_OFFSET;
-const unsigned COMMON_NODE_SIZE = NODE_TYPE_SIZE + NODE_IS_LEAF_SIZE;
+const uint32_t NODE_TYPE_SIZE = sizeof(uint8_t);
+const uint32_t NODE_TYPE_OFFSET = 0;
+const uint32_t IS_ROOT_SIZE = sizeof(uint8_t);
+const uint32_t IS_ROOT_OFFSET = NODE_TYPE_OFFSET + NODE_TYPE_SIZE;
+const uint32_t PARENT_POINTER_SIZE = sizeof(uint32_t);
+const uint32_t PARENT_POINTER_OFFSET = IS_ROOT_OFFSET + IS_ROOT_SIZE;
+const uint32_t COMMON_NODE_HEADER_SIZE = NODE_TYPE_SIZE + IS_ROOT_SIZE + PARENT_POINTER_SIZE;
 
+// lead node headers
+const uint32_t LEAF_NODE_NUM_CELLS_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_NUM_CELLS_OFFSET = COMMON_NODE_HEADER_SIZE + 0;
+const uint32_t LEAF_NODE_HEADER_SIZE = COMMON_NODE_HEADER_SIZE + LEAF_NODE_NUM_CELLS_SIZE;
+
+// leaf node body
+const uint32_t LEAF_NODE_KEY_SIZE = sizeof(uint32_t);
+const uint32_t LEAF_NODE_KEY_OFFSET = LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_VALUE_SIZE = ROW_SIZE;
+const uint32_t LEAF_NODE_VALUE_OFFSET = LEAF_NODE_KEY_SIZE + LEAF_NODE_KEY_OFFSET;
+const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
+const uint32_t LEAF_NODE_CELL_SPACE = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_MAX_CELLS = LEAF_NODE_CELL_SPACE / LEAF_NODE_CELL_SIZE;
+
+// get and set functions for leaf node fields
+uint32_t* sqlite_leaf_node_num_cells(void *node) {
+	return node + LEAF_NODE_NUM_CELLS_OFFSET;
+}
+void* sqlite_leaf_node_cell(void *node, uint32_t cell) {
+	return node + LEAF_NODE_KEY_OFFSET + LEAF_NODE_CELL_SIZE*cell;
+}
+uint32_t* sqlite_leaf_node_key(void *node, uint32_t cell) {
+	return sqlite_leaf_node_cell(node, cell);
+}
+void* sqlite_leaf_node_value(void *node, uint32_t cell) {
+	return sqlite_leaf_node_cell(node, cell) + LEAF_NODE_VALUE_OFFSET;
+}
+void initialize_leaf_node(void *node) {
+	*(sqlite_leaf_node_num_cells(node)) = 0;
+}
 
 InputBuffer* sqlite_new_input_buffer() {
 	InputBuffer* in = (InputBuffer*)malloc(sizeof(InputBuffer));
