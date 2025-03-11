@@ -1333,4 +1333,139 @@ const uint32_t LEAF_NODE_MAX_CELLS = LEAF_NODE_CELL_SPACE / LEAF_NODE_CELL_SIZE;
 
 Every field in the node has some offset value which we can add to get that field in that node memory block.
 
+Let's define some functions that can be used to access the key, value, number of cells in a leaf node -
+
+```c
+uint32_t* sqlite_leaf_node_num_cells(void *node) {
+	return node + LEAF_NODE_NUM_CELLS_OFFSET;
+}
+void* sqlite_leaf_node_cell(void *node, uint32_t cell) {
+	return node + LEAF_NODE_KEY_OFFSET + LEAF_NODE_CELL_SIZE*cell;
+}
+uint32_t* sqlite_leaf_node_key(void *node, uint32_t cell) {
+	return sqlite_leaf_node_cell(node, cell);
+}
+void* sqlite_leaf_node_value(void *node, uint32_t cell) {
+	return sqlite_leaf_node_cell(node, cell) + LEAF_NODE_VALUE_OFFSET;
+}
+```
+
+Another function that can initialize a leaf node by setting it's number of cells to 0 -
+
+```c
+void initialize_leaf_node(void *node) {
+	*(sqlite_leaf_node_num_cells(node)) = 0;
+}
+```
+
+Revisiting some previous concepts related to how sqlite works -
+
+1. The virtual machine will take the byte code coming from front-end. Then it will perform operations on tables or indexes. The tables/indexes are stored in the b-tree. It is a switch for choosing what operation to perform based on the bytecode.
+2. B-Tree is responsible for storing the pages in different nodes and efficiently reading and writing them from/to disk by issuing commands to pager object.
+3. Pager is responsible for reading pages from disk and writing them on disk at the correct offset in database file. It also keeps a cache of the recently accessed pages.
+
+Following changes will happen after introducing b-tree -
+
+- The database had a table which used to issue commands to pager for accessing pages. Now the database will use b-tree to keep track of the pages through pager object. B-Tree will have access to all pages in the database file. A table will now need to track the root page. 
+- Previously we used to store the rows in pages which was a continous memory block. If one page was full, we will store the new rows in the next page. This also created some pages which are partially filled. Now every node in the b-tree will store the pages in nodes. Every node will store one page, even if the page is not full. So, now we do not need to read/write partial pages.
+- Previously cursor will store the row number. Now it needs to keeps track of the page no and the cell no in the node.
+
+The pager object will now also keep track of number of pages. It is not part of table because pager object is part of the database and not any particular table. Database can have multiple tables and each table can have different root page number. 
+
+```c
+#define TABLE_MAX_PAGES 100
+typedef struct {
+	int file_descriptor;
+	unsigned int file_length;
+	void* pages[TABLE_MAX_PAGES];
+	uint32_t num_pages;
+}Pager;
+```
+
+Now table will ask b-tree to access the pages or write to pages. A B-Tree is identified by it's root so table needs to keep track of the root page number.
+
+```c
+typedef struct {
+	uint32_t root_page_num;
+	Pager* pager;
+} Table;
+```
+
+When opening the database by initializing the pager and table, we need to now store the root page number instead of number of rows. When the pager has no pages, initialize a page and set the node (page) with number of cells 0.
+
+```c
+Table* sqlite_open_db(char* filename) {
+	Pager *p = sqlite_init_pager(filename);
+	Table *table = (Table*)malloc(sizeof(Table));
+	table->pager = p;
+	table->root_page_num = 0;
+
+	if(p->num_pages == 0) {
+		void *page = sqlite_get_page(p, 0);
+		initialize_leaf_node(page);
+	}
+
+	return table;
+}
+```
+
+Cursor will now store the page no and the cell no where the row could be found in the node.
+
+```c
+typedef struct {
+	Table *table;
+	uint32_t page_num;
+	uint32_t cell_num;
+	bool end_of_table;
+} Cursor;
+```
+
+The operations related to cursor will also change.
+
+```c
+Cursor* sqlite_get_table_start(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+
+	c->page_num = table->root_page_num;
+	c->cell_num = 0;
+	
+	void *root_node = sqlite_get_page(table->pager, table->root_page_num);
+	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
+	c->end_of_table = (num_cells == 0);
+
+	return c;
+}
+
+
+Cursor* sqlite_get_table_end(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+	c->page_num = table->root_page_num;
+	
+	void *root_node = sqlite_get_page(table->pager, table->root_page_num);
+	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
+	c->cell_num = num_cells;
+
+	c->end_of_table = true;
+
+	return c;
+}
+
+void sqlite_cursor_advance(Cursor *c) {
+	c->cell_num += 1;
+
+	void *root_node = sqlite_get_page(c->table->pager, c->table->root_page_num);
+	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
+	if(c->cell_num >= num_cells) c->end_of_table = true;
+}
+
+void* sqlite_get_row(Cursor *c) {
+	int page_no = c->page_num;
+	void *page = sqlite_get_page(c->table->pager, page_no);
+
+	return sqlite_leaf_node_value(page, c->cell_num);
+}
+```
+
 

@@ -42,7 +42,6 @@ const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
 const uint32_t LEAF_NODE_CELL_SPACE = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
 const uint32_t LEAF_NODE_MAX_CELLS = LEAF_NODE_CELL_SPACE / LEAF_NODE_CELL_SIZE;
 
-// get and set functions for leaf node fields
 uint32_t* sqlite_leaf_node_num_cells(void *node) {
 	return node + LEAF_NODE_NUM_CELLS_OFFSET;
 }
@@ -88,16 +87,22 @@ Table* sqlite_open_db(char* filename) {
 	Pager *p = sqlite_init_pager(filename);
 	Table *table = (Table*)malloc(sizeof(Table));
 	table->pager = p;
+	table->root_page_num = 0;
 
-	unsigned int nrows = p->file_length / ROW_SIZE;
-	table->n_rows = nrows;
+	if(p->num_pages == 0) {
+		// if no page exists then initialize the 0th page
+		void *page = sqlite_get_page(p, 0);
+		initialize_leaf_node(page);
+	}
+
 	return table;
 }
 
 void sqlite_get_cmd(InputBuffer *in) {
 	fprintf(stdout, "sqlite> ");
 
-	size_t buffer_length, bytes_read;
+	int bytes_read;
+	size_t buffer_length;
 	
 	// return length is the bytes read, it does not include null but includes the new line if given
 	bytes_read = getline(&in->buffer, &buffer_length, stdin);
@@ -137,7 +142,7 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 		// 	return COMPILE_FAILURE;
 		// }
 
-		char* insert_keyword = strtok(in->buffer, " ");
+		strtok(in->buffer, " ");
 		char* id_string = strtok(NULL, " ");
 		char* username_string = strtok(NULL, " ");
 		char* email_string = strtok(NULL, " ");
@@ -211,25 +216,48 @@ void* sqlite_get_page(Pager* pager, int page_no) {
 	return pager->pages[page_no];
 }
 
-void* sqlite_get_cursor_in_memory(Cursor *c) {
-	int row_no = c->row_num;
-	int page_no = row_no / ROWS_PER_PAGE;
-	
+void* sqlite_get_row(Cursor *c) {
+	int page_no = c->page_num;
 	void *page = sqlite_get_page(c->table->pager, page_no);
 
-	unsigned int row_offset = row_no % ROWS_PER_PAGE;
-	unsigned int byte_offset = row_offset * ROW_SIZE;
-
-	return page + byte_offset;
+	return sqlite_leaf_node_value(page, c->cell_num);
 }
 
-Cursor* sqlite_get_end_cursor(Table *table) {
+Cursor* sqlite_get_table_start(Table *table) {
 	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
 	c->table = table;
-	c->row_num = table->n_rows;
+
+	c->page_num = table->root_page_num;
+	c->cell_num = 0;
+	
+	void *root_node = sqlite_get_page(table->pager, table->root_page_num);
+	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
+	c->end_of_table = (num_cells == 0);
+
+	return c;
+}
+
+
+Cursor* sqlite_get_table_end(Table *table) {
+	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
+	c->table = table;
+	c->page_num = table->root_page_num;
+	
+	void *root_node = sqlite_get_page(table->pager, table->root_page_num);
+	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
+	c->cell_num = num_cells;
+
 	c->end_of_table = true;
 
 	return c;
+}
+
+void sqlite_cursor_advance(Cursor *c) {
+	c->cell_num += 1;
+
+	void *root_node = sqlite_get_page(c->table->pager, c->table->root_page_num);
+	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
+	if(c->cell_num >= num_cells) c->end_of_table = true;
 }
 
 StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
@@ -237,33 +265,21 @@ StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *tabl
 		return STATEMENT_EXECUTION_TABLE_FULL;
 	}
 	
-	Cursor *c = sqlite_get_end_cursor(table);
-	sqlite_serialize(&(stat->row), sqlite_get_cursor_in_memory(c));
+	Cursor *c = sqlite_get_table_end(table);
+	sqlite_serialize(&(stat->row), sqlite_get_row(c));
 	table->n_rows += 1;
 	return STATEMENT_EXECUTION_SUCCESS;
 }
 
-Cursor* sqlite_get_start_cursor(Table *table) {
-	Cursor *c = (Cursor*)malloc(sizeof(Cursor));
-	c->table = table;
-	c->row_num = 0;
-	c->end_of_table = (table->n_rows == 0);
-
-	return c;
-}
 
 
-void sqlite_cursor_advance(Cursor *c) {
-	c->row_num += 1;
-	if(c->row_num >= c->table->n_rows) c->end_of_table = true;
-}
 
 StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
 	Row *r = (Row*)malloc(sizeof(Row));
-	Cursor *c = sqlite_get_start_cursor(table);
+	Cursor *c = sqlite_get_table_start(table);
 
 	while(!(c->end_of_table)) {
-		sqlite_deserialize(sqlite_get_cursor_in_memory(c), r);
+		sqlite_deserialize(sqlite_get_row(c), r);
 		fprintf(stdout, "%d %s %s\n", r->id, r->username, r->email);
 		sqlite_cursor_advance(c);
 	}

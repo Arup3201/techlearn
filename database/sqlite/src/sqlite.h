@@ -5,6 +5,10 @@
 #include<stdbool.h>
 #endif
 
+#ifndef __CLANG_STDINT_H
+#include<stdint.h>
+#endif
+
 #define MAX_INPUT_LENGTH 1024
 typedef struct {
 	char* buffer;
@@ -57,16 +61,18 @@ typedef struct {
 	int file_descriptor;
 	unsigned int file_length;
 	void* pages[TABLE_MAX_PAGES];
+	uint32_t num_pages;
 }Pager;
 
 typedef struct {
-	unsigned int n_rows;
+	uint32_t root_page_num;
 	Pager* pager;
 } Table;
 
 typedef struct {
 	Table *table;
-	int row_num;
+	uint32_t page_num;
+	uint32_t cell_num;
 	bool end_of_table;
 } Cursor;
 
@@ -75,6 +81,7 @@ typedef struct {
 
 InputBuffer* sqlite_new_input_buffer();
 Pager* sqlite_init_pager(char*); // takes a filename and returns a Pager pointer after initilaizing it
+void* sqlite_get_page(Pager*, int);
 Table* sqlite_open_db(char*);
 void sqlite_get_cmd(InputBuffer*);
 void sqlite_free_buffer(InputBuffer*);
