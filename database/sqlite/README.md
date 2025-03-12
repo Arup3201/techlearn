@@ -1382,6 +1382,35 @@ typedef struct {
 }Pager;
 ```
 
+Now the pager object needs the number of pages. We can calculate it using the file length and page size. If the filename is not a multiple if page size then the database file is corrupted.
+
+```c
+Pager* sqlite_init_pager(char* filename) {
+	int fd = open(filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	if(fd == -1) {
+		fprintf(stderr, "Error: can't open file %s\n", filename);
+		exit(EXIT_FAILURE);
+	}
+	off_t file_length = lseek(fd, 0, SEEK_END);
+	
+	Pager *p = (Pager*)malloc(sizeof(Pager));
+	p->file_descriptor = fd;
+	p->file_length = file_length;
+	p->num_pages = file_length / PAGE_SIZE;
+
+	if(file_length % PAGE_SIZE) {
+		fprintf(stdout, "[ERROR] Database file is corrupted!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	for(int i=0; i<TABLE_MAX_PAGES; i++) {
+		p->pages[i] = NULL;
+	}
+
+	return p;
+}
+```
+
 Now table will ask b-tree to access the pages or write to pages. A B-Tree is identified by it's root so table needs to keep track of the root page number.
 
 ```c
@@ -1392,6 +1421,26 @@ typedef struct {
 ```
 
 When opening the database by initializing the pager and table, we need to now store the root page number instead of number of rows. When the pager has no pages, initialize a page and set the node (page) with number of cells 0.
+
+When pager gets the pages, we need to increase the number of pages in the pager if the page number is more than what pager knows.
+
+```c
+void* sqlite_get_page(Pager* pager, int page_num) {
+    // code ...
+
+	if(pager->pages[page_num] == NULL) {
+        // code...
+
+		if(page_num >= pager->num_pages) {
+			page_num += 1;
+		}
+	}
+
+	return pager->pages[page_num];
+}
+```
+
+If there are no pages in the pager, it means the database is newly created, so the root node will be the leaf node.
 
 ```c
 Table* sqlite_open_db(char* filename) {
@@ -1408,8 +1457,7 @@ Table* sqlite_open_db(char* filename) {
 	return table;
 }
 ```
-
-Cursor will now store the page no and the cell no where the row could be found in the node.
+Previosly cursor used to point to rows at the table because the table was an array of rows. But now the table access the pages through b-tree which store those rows in a node at a particular cell number. So, now the cursor will now store the page no and the cell no where the row could be found in the b-tree.
 
 ```c
 typedef struct {
@@ -1468,4 +1516,40 @@ void* sqlite_get_row(Cursor *c) {
 }
 ```
 
+Now we need to insert the rows through b-tree.
 
+```c
+StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
+	void *page = sqlite_get_page(table->pager, table->root_page_num);
+	if(*(sqlite_leaf_node_num_cells(page)) >= LEAF_NODE_MAX_CELLS) {
+		return STATEMENT_EXECUTION_TABLE_FULL;
+	}
+	
+	Cursor *c = sqlite_get_table_end(table);
+	btree_leaf_node_insert(c, stat->row.id, &(stat->row));
+	return STATEMENT_EXECUTION_SUCCESS;
+}
+```
+
+B-Tree will take the key and the row, along with the cursor to place the row at the correct cell no. Before that it will also move cells to the right side to make space for the new cell. If the number of cells exceed total cells in the node, we will split the node (not implemented yet).
+
+```c
+void btree_leaf_node_insert(Cursor *c, uint32_t key, Row *row) {
+	void *page = sqlite_get_page(c->table->pager, c->page_num);
+	uint32_t num_cells = *sqlite_leaf_node_num_cells(page);
+	if(num_cells >= LEAF_NODE_MAX_CELLS) {
+		fprintf(stdout, "[ERROR] Not impelemented leaf splitting when node is full\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(c->cell_num < num_cells) {
+		for(uint32_t i=num_cells; i>c->cell_num; i--) {
+			memcpy(sqlite_leaf_node_cell(page, i), sqlite_leaf_node_cell(page, i-1), LEAF_NODE_CELL_SIZE);
+		}
+
+		*(sqlite_leaf_node_key(page, c->cell_num)) = key;
+		*(sqlite_leaf_node_num_cells(page)) += 1; 
+		sqlite_serialize(row, sqlite_leaf_node_value(page, c->cell_num));
+	}
+}
+```

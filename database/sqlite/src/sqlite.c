@@ -4,6 +4,7 @@
 #include<stdbool.h>
 #include<string.h>
 #include<fcntl.h>
+#include <sys/types.h>
 #include<unistd.h>
 #include<inttypes.h>
 
@@ -75,6 +76,12 @@ Pager* sqlite_init_pager(char* filename) {
 	Pager *p = (Pager*)malloc(sizeof(Pager));
 	p->file_descriptor = fd;
 	p->file_length = file_length;
+	p->num_pages = file_length / PAGE_SIZE;
+
+	if(file_length % PAGE_SIZE) {
+		fprintf(stdout, "[ERROR] Database file is corrupted!\n");
+		exit(EXIT_FAILURE);
+	}
 
 	for(int i=0; i<TABLE_MAX_PAGES; i++) {
 		p->pages[i] = NULL;
@@ -90,7 +97,7 @@ Table* sqlite_open_db(char* filename) {
 	table->root_page_num = 0;
 
 	if(p->num_pages == 0) {
-		// if no page exists then initialize the 0th page
+		// database is new so root node is leaf node.
 		void *page = sqlite_get_page(p, 0);
 		initialize_leaf_node(page);
 	}
@@ -188,32 +195,38 @@ void sqlite_deserialize(void* source, Row* destination) {
 	memcpy(destination->email, source+EMAIL_OFFSET, EMAIL_SIZE);
 }
 
-void* sqlite_get_page(Pager* pager, int page_no) {
+void* sqlite_get_page(Pager* pager, int page_num) {
 
-	if(page_no > TABLE_MAX_PAGES) {
-		fprintf(stderr, "Error: trying to access out of bound page\n");
+	if(page_num > TABLE_MAX_PAGES) {
+		fprintf(stderr, "[Error] Trying to access out of bound page\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if(pager->pages[page_no] == NULL) {
-		pager->pages[page_no] = malloc(PAGE_SIZE);
+	if(pager->pages[page_num] == NULL) {
+		void *page = malloc(PAGE_SIZE);
 
 		ssize_t num_pages = pager->file_length / PAGE_SIZE;
 		if(pager->file_length % PAGE_SIZE) {
 			num_pages += 1;
 		}
 
-		if(page_no <= num_pages) {
-			lseek(pager->file_descriptor, page_no * PAGE_SIZE, SEEK_SET);
-			ssize_t nbytes = read(pager->file_descriptor, pager->pages[page_no], PAGE_SIZE);
+		if(page_num <= num_pages) {
+			lseek(pager->file_descriptor, page_num * PAGE_SIZE, SEEK_SET);
+			ssize_t nbytes = read(pager->file_descriptor, page, PAGE_SIZE);
 			if(nbytes < 0) {
 				fprintf(stdout, "Error: pager can't read the contents of the page\n");
 				exit(EXIT_FAILURE);
 			}
 		}
+
+		pager->pages[page_num] = page;
+
+		if(page_num >= pager->num_pages) {
+			page_num += 1;
+		}
 	}
 
-	return pager->pages[page_no];
+	return pager->pages[page_num];
 }
 
 void* sqlite_get_row(Cursor *c) {
@@ -259,22 +272,40 @@ void sqlite_cursor_advance(Cursor *c) {
 	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
 	if(c->cell_num >= num_cells) c->end_of_table = true;
 }
+void btree_leaf_node_insert(Cursor *c, uint32_t key, Row *row) {
+	void *page = sqlite_get_page(c->table->pager, c->page_num);
+	uint32_t num_cells = *sqlite_leaf_node_num_cells(page);
+	if(num_cells >= LEAF_NODE_MAX_CELLS) {
+		fprintf(stdout, "[ERROR] Not impelemented leaf splitting when node is full\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(c->cell_num < num_cells) {
+		for(uint32_t i=num_cells; i>c->cell_num; i--) {
+			memcpy(sqlite_leaf_node_cell(page, i), sqlite_leaf_node_cell(page, i-1), LEAF_NODE_CELL_SIZE);
+		}
+
+		*(sqlite_leaf_node_key(page, c->cell_num)) = key;
+		*(sqlite_leaf_node_num_cells(page)) += 1; 
+		sqlite_serialize(row, sqlite_leaf_node_value(page, c->cell_num));
+	}
+}
 
 StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *table) {
-	if(table->n_rows >= ROWS_PER_PAGE * TABLE_MAX_PAGES) {
+	void *page = sqlite_get_page(table->pager, table->root_page_num);
+	if(*(sqlite_leaf_node_num_cells(page)) >= LEAF_NODE_MAX_CELLS) {
 		return STATEMENT_EXECUTION_TABLE_FULL;
 	}
 	
 	Cursor *c = sqlite_get_table_end(table);
-	sqlite_serialize(&(stat->row), sqlite_get_row(c));
-	table->n_rows += 1;
+	btree_leaf_node_insert(c, stat->row.id, &(stat->row));
 	return STATEMENT_EXECUTION_SUCCESS;
 }
 
 
 
 
-StatementExecResult sqlite_execute_select_statement(Statement *stat, Table *table) {
+StatementExecResult sqlite_execute_select_statement(Table *table) {
 	Row *r = (Row*)malloc(sizeof(Row));
 	Cursor *c = sqlite_get_table_start(table);
 
@@ -293,7 +324,7 @@ StatementExecResult sqlite_execute_statement(Statement *stat, Table *table) {
 			return sqlite_execute_insert_statement(stat, table);
 
 		case STATEMENT_SELECT:
-			return sqlite_execute_select_statement(stat, table);
+			return sqlite_execute_select_statement(table);
 
 		default:
 			return STATEMENT_EXECUTION_FAILURE;
@@ -327,17 +358,11 @@ void sqlite_flush_page(Pager *pager, int page_no, size_t page_size) {
 }
 
 void sqlite_close_db(Table* table) {
-	// flush the pages which are filled with rows
-	unsigned int fully_filled_pages = table->n_rows / ROWS_PER_PAGE;
-	for(int i=0; i<fully_filled_pages; i++) {
+	Pager *pager = table->pager;
+	uint32_t num_pages = pager->num_pages;
+	for(uint32_t i=0; i<num_pages; i++) {
 		sqlite_flush_page(table->pager, i, PAGE_SIZE);
 	}
-
-	// flush partially filled page 
-	// we put the new rows in a page after previous page is filled
-	// so we only have one partially filled page at the end
-	size_t partial_page_size = (table->n_rows % ROWS_PER_PAGE) * ROW_SIZE;
-	sqlite_flush_page(table->pager, fully_filled_pages, partial_page_size);
 
 	close(table->pager->file_descriptor);
 	free(table->pager);
