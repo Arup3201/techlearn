@@ -81,7 +81,7 @@ typedef struct {
 
 InputBuffer* sqlite_new_input_buffer();
 Pager* sqlite_init_pager(char*); // takes a filename and returns a Pager pointer after initilaizing it
-void* sqlite_get_page(Pager*, int);
+void* sqlite_get_page(Pager*, uint32_t);
 Table* sqlite_open_db(char*);
 void sqlite_get_cmd(InputBuffer*);
 void sqlite_free_buffer(InputBuffer*);

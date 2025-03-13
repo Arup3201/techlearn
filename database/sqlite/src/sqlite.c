@@ -66,9 +66,11 @@ InputBuffer* sqlite_new_input_buffer() {
 }
 
 Pager* sqlite_init_pager(char* filename) {
+	fprintf(stdout, "[INFO] Initializing pager from file %s\n", filename);
+
 	int fd = open(filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if(fd == -1) {
-		fprintf(stderr, "Error: can't open file %s\n", filename);
+		fprintf(stderr, "[Error] Can't open file %s\n", filename);
 		exit(EXIT_FAILURE);
 	}
 	off_t file_length = lseek(fd, 0, SEEK_END);
@@ -87,10 +89,14 @@ Pager* sqlite_init_pager(char* filename) {
 		p->pages[i] = NULL;
 	}
 
+	fprintf(stdout, "[INFO] Pager initialized\n");
+	
 	return p;
 }
 
 Table* sqlite_open_db(char* filename) {
+	fprintf(stdout, "[INFO] Initializing the database\n");
+
 	Pager *p = sqlite_init_pager(filename);
 	Table *table = (Table*)malloc(sizeof(Table));
 	table->pager = p;
@@ -98,9 +104,13 @@ Table* sqlite_open_db(char* filename) {
 
 	if(p->num_pages == 0) {
 		// database is new so root node is leaf node.
+		fprintf(stdout, "[INFO] First page of the new database is initialized\n");
+
 		void *page = sqlite_get_page(p, 0);
 		initialize_leaf_node(page);
 	}
+
+	fprintf(stdout, "[INFO] Database sucessfully initialized\n");
 
 	return table;
 }
@@ -135,7 +145,7 @@ MetaCmdResult sqlite_execute_meta_cmd(InputBuffer *in, Table *table) {
 	}
 	
 
-	fprintf(stderr, "Unrecognized command '%s'\n", in->buffer);
+	fprintf(stderr, "[ERROR] Unrecognized command '%s'\n", in->buffer);
 	return META_COMMAND_FAILURE;
 }
 
@@ -155,17 +165,17 @@ CompileResult sqlite_compile_statement(InputBuffer *in, Statement *stat) {
 		char* email_string = strtok(NULL, " ");
 
 		if(id_string == NULL || username_string == NULL || email_string == NULL) {
-			fprintf(stderr, "Error: Invalid syntax for insert statement.\n");
+			fprintf(stderr, "[ERROR] Invalid syntax for insert statement.\n");
 			return COMPILE_SYNTAX_ERROR;
 		}
 
 		if(strlen(username_string) > USERNAME_MAX_SIZE) {
-			fprintf(stderr, "Error: Invalid value found in insert statement.\n");
+			fprintf(stderr, "[ERROR] Invalid value found in insert statement.\n");
 			return COMPILE_INPUT_ERROR;
 		}
 
 		if(strlen(email_string) > EMAIL_MAX_SIZE) {
-			fprintf(stderr, "Error: Invalid value found in insert statement.\n");
+			fprintf(stderr, "[ERROR] Invalid value found in insert statement.\n");
 			return COMPILE_INPUT_ERROR;
 		}
 
@@ -195,26 +205,21 @@ void sqlite_deserialize(void* source, Row* destination) {
 	memcpy(destination->email, source+EMAIL_OFFSET, EMAIL_SIZE);
 }
 
-void* sqlite_get_page(Pager* pager, int page_num) {
+void* sqlite_get_page(Pager* pager, uint32_t page_num) {
 
 	if(page_num > TABLE_MAX_PAGES) {
-		fprintf(stderr, "[Error] Trying to access out of bound page\n");
+		fprintf(stderr, "[ERROR] Trying to access out of bound page\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if(pager->pages[page_num] == NULL) {
 		void *page = malloc(PAGE_SIZE);
 
-		ssize_t num_pages = pager->file_length / PAGE_SIZE;
-		if(pager->file_length % PAGE_SIZE) {
-			num_pages += 1;
-		}
-
-		if(page_num <= num_pages) {
+		if(page_num <= pager->num_pages) {
 			lseek(pager->file_descriptor, page_num * PAGE_SIZE, SEEK_SET);
 			ssize_t nbytes = read(pager->file_descriptor, page, PAGE_SIZE);
 			if(nbytes < 0) {
-				fprintf(stdout, "Error: pager can't read the contents of the page\n");
+				fprintf(stdout, "[ERROR] Pager can't read the contents of the page\n");
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -222,7 +227,7 @@ void* sqlite_get_page(Pager* pager, int page_num) {
 		pager->pages[page_num] = page;
 
 		if(page_num >= pager->num_pages) {
-			page_num += 1;
+			pager->num_pages += 1;
 		}
 	}
 

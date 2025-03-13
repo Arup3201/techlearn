@@ -1553,3 +1553,7 @@ void btree_leaf_node_insert(Cursor *c, uint32_t key, Row *row) {
 	}
 }
 ```
+
+### Some more commands
+
+
