@@ -36,7 +36,7 @@ const uint32_t LEAF_NODE_HEADER_SIZE = COMMON_NODE_HEADER_SIZE + LEAF_NODE_NUM_C
 
 // leaf node body
 const uint32_t LEAF_NODE_KEY_SIZE = sizeof(uint32_t);
-const uint32_t LEAF_NODE_KEY_OFFSET = LEAF_NODE_HEADER_SIZE;
+const uint32_t LEAF_NODE_KEY_OFFSET = 0;
 const uint32_t LEAF_NODE_VALUE_SIZE = ROW_SIZE;
 const uint32_t LEAF_NODE_VALUE_OFFSET = LEAF_NODE_KEY_SIZE + LEAF_NODE_KEY_OFFSET;
 const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
@@ -277,6 +277,7 @@ void sqlite_cursor_advance(Cursor *c) {
 	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
 	if(c->cell_num >= num_cells) c->end_of_table = true;
 }
+
 void btree_leaf_node_insert(Cursor *c, uint32_t key, Row *row) {
 	void *page = sqlite_get_page(c->table->pager, c->page_num);
 	uint32_t num_cells = *sqlite_leaf_node_num_cells(page);
@@ -306,9 +307,6 @@ StatementExecResult sqlite_execute_insert_statement(Statement *stat, Table *tabl
 	btree_leaf_node_insert(c, stat->row.id, &(stat->row));
 	return STATEMENT_EXECUTION_SUCCESS;
 }
-
-
-
 
 StatementExecResult sqlite_execute_select_statement(Table *table) {
 	Row *r = (Row*)malloc(sizeof(Row));
