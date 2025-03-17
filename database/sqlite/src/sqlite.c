@@ -286,7 +286,7 @@ void btree_leaf_node_insert(Cursor *c, uint32_t key, Row *row) {
 		exit(EXIT_FAILURE);
 	}
 
-	if(c->cell_num < num_cells) {
+	if(c->cell_num <= num_cells) {
 		for(uint32_t i=num_cells; i>c->cell_num; i--) {
 			memcpy(sqlite_leaf_node_cell(page, i), sqlite_leaf_node_cell(page, i-1), LEAF_NODE_CELL_SIZE);
 		}
