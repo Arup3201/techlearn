@@ -108,6 +108,7 @@ Table* sqlite_open_db(char* filename) {
 
 		void *page = sqlite_get_page(p, 0);
 		initialize_leaf_node(page);
+		fprintf(stdout, "[INFO] num_cells=%d\n", *(sqlite_leaf_node_num_cells(page)));
 	}
 
 	fprintf(stdout, "[INFO] Database sucessfully initialized\n");
@@ -272,7 +273,6 @@ Cursor* sqlite_get_table_end(Table *table) {
 
 void sqlite_cursor_advance(Cursor *c) {
 	c->cell_num += 1;
-
 	void *root_node = sqlite_get_page(c->table->pager, c->table->root_page_num);
 	uint32_t num_cells = *(sqlite_leaf_node_num_cells(root_node));
 	if(c->cell_num >= num_cells) c->end_of_table = true;
