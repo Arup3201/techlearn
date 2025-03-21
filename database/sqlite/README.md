@@ -1,4 +1,7 @@
-# Database - SQLite (Theory and Code)
+# Database - SQLite 
+
+Following theory is taken from the [YouTube video](https://www.youtube.com/watch?v=IrzF4r9hqlY).
+
 
 This folder explores about one of the databases sqlite using C. We will talk about the theories of databases and some concepts to build one using C language.
 

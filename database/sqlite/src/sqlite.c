@@ -108,7 +108,6 @@ Table* sqlite_open_db(char* filename) {
 
 		void *page = sqlite_get_page(p, 0);
 		initialize_leaf_node(page);
-		fprintf(stdout, "[INFO] num_cells=%d\n", *(sqlite_leaf_node_num_cells(page)));
 	}
 
 	fprintf(stdout, "[INFO] Database sucessfully initialized\n");
