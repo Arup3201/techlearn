@@ -1,7 +1,28 @@
 # Database - SQLite 
 
-Following theory is taken from the [YouTube video](https://www.youtube.com/watch?v=IrzF4r9hqlY).
+Following theory is taken from the [YouTube video](https://www.youtube.com/watch?v=IrzF4r9hqlY). (START AT 23:51)
 
+## SQLite Architecture
+
+SQLite architecture can be divided into 2 parts -
+
+- One part is responsible for understanding the sql command that we have written, and generete bytecode for that command 
+- Another part will use this bytecode to process the data 
+
+The first part will have 4 components -
+
+1. Tokenizer: Commands will have some special parts inside them like `CREATE`, `INSERT`, `INTO` etc. The tokenizer will break the command into small tokens for further processing.
+2. Parser: After we get the tokens from the command, we need to check whether they make sense together. If the tokens together actually yield to some result or is it just a wrong statement? Parser will help us do that. It will generate a parse tree from the tokens and from the parse tree we can understand whether it is a correct command or not syntactically.
+3. Code Generator: Code generator will generate the byte code for the command. This bytecode will be used to process the data.
+
+This part is also called the "frontend" of the SQLite database architecture. The other part is the "backend" that is responsible for data processing.
+
+The "backend" has the following components -
+
+1. Virtual Machine: Virtual machine or virtual database engine (VDBE in short) will get the bytecode and process the data. It is a big switch statement that decides whether to do select or insert or update based on the bytecode.
+2. B/B+ Tree: Virtual machine will use B-Tree to get the data from the disk. SQLite stores every table and index in a seperate b-tree. To access a table or index we need the page number and b-tree will get that page for us.
+3. Pager: Pager is responsible for making read/write operations on disk for pages. A database is stored in a disk as a single file. That file contains the database tables/indexes in the form of pages. It is an continuous array of pages. Every page is usually 4KB size nd they can be indexes using the page number. Pager also caches the recently accessed pages for faster operations. It also helps in ACID, locking management and rollback operation.
+4. Virtual File System: VFS is used to make sure we are supporting cross-platform pperations. It is a common layer to support different operations depending on the type of platform we are in. It is also called OS interface because it defines the interface for different operations in different OS.
 
 This folder explores about one of the databases sqlite using C. We will talk about the theories of databases and some concepts to build one using C language.
 
