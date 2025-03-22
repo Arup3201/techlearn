@@ -1,66 +1,32 @@
-#include<stdbool.h>
 #include<stdio.h>
-
 #include "sqlite.h"
 
-int main(int argc, char* argv[]) {
-	InputBuffer *input = sqlite_new_input_buffer();
-
-	if(argc != 2) {
-		fprintf(stderr, "Error: needs a database file name\n");
+int main(int argc, char *argv[]) {
+	if(argc < 2) {
+		fprintf(stderr, "Usage: %s DB_FILE\n", argv[0]);
 		return 1;
 	}
 
-	char* filename = argv[1];
-	Table *table = sqlite_open_db(filename);
+	char *db_filename = argv[1];
+	// db = sqlite_open_db(db_filename);
+	// if(db == NULL) {
+	// 	fprintf(stderr, "[ERROR] Can't open the database\n");
+	// 	return 1;
+	// }
 	
-	while(true) {
-		sqlite_get_cmd(input);
+	// REPL Interface
+	// while(1) {
+	// 	cmd = ...;
+	// 	res = sqlite_exec(db, cmd);
 
-		// if it is meta command - .exit, .tables
-		if(input->buffer[0] == '.') {
-			switch(sqlite_execute_meta_cmd(input, table)) {
-				case META_COMMAND_SUCCESS:
-					continue;
-				case META_COMMAND_FAILURE:
-					fprintf(stderr, "Error: failed to execute the command '%s'\n", input->buffer);
-					continue;
-			}
-		}
+	// 	if(res is not OK) {
+	// 		 error
+	// 		 sqlite_close_db();
+	// 		 return 1;
+	// 	}
+	// }
 
-		// if it is a sql statement
-		Statement statement;
-		switch(sqlite_compile_statement(input, &statement)) {
-			case COMPILE_SUCCESS:
-				break;
+	// sqlite_close_db(db);
 
-			case COMPILE_SYNTAX_ERROR:
-				continue;
-
-			case COMPILE_INPUT_ERROR:
-				continue;
-
-			case COMPILE_FAILURE:
-				fprintf(stderr, "Error:  Unrecognized statement at the start of '%s'\n", input->buffer);
-				continue;
-		}
-
-		// execute the sql Statement
-		switch(sqlite_execute_statement(&statement, table)) {
-			case STATEMENT_EXECUTION_SUCCESS:
-				fprintf(stdout, "Statement Executed.\n");
-				break;
-
-			case STATEMENT_EXECUTION_TABLE_FULL:
-				fprintf(stdout, "Table is full.\n");
-				break;
-
-			case STATEMENT_EXECUTION_FAILURE:
-				continue;
-
-		}
-	}
-
-	sqlite_free_buffer(input);
 	return 0;
 }
