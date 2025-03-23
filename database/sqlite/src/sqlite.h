@@ -4,7 +4,10 @@
 typedef struct sqlite sqlite;
 
 struct sqlite {
-	char *db_filename;
+	char *zFilename;
+	int zFiledescriptor;
 };
+
+void sqlite_open(const char*, sqlite**);
 
 #endif

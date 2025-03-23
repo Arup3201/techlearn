@@ -8,11 +8,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	char *db_filename = argv[1];
-	// db = sqlite_open_db(db_filename);
-	// if(db == NULL) {
-	// 	fprintf(stderr, "[ERROR] Can't open the database\n");
-	// 	return 1;
-	// }
+	sqlite *db;
+	sqlite_open(db_filename, &db);
+	if(db == NULL) {
+		fprintf(stderr, "[ERROR] Can't open the database %s\n", db_filename);
+		return 1;
+	}
 	
 	// REPL Interface
 	// while(1) {
