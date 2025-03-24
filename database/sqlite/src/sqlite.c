@@ -14,5 +14,14 @@ void sqlite_open(const char *zFilename, sqlite **ppDb) {
 	}
 
 	strcpy((*ppDb)->zFilename, zFilename);
-	(*ppDb)->zFiledescriptor = fd;
+	(*ppDb)->zFileDescriptor = fd;
+}
+
+void sqlite_exec(sqlite *pDb, const char *zSqlCmd) {
+	sqlite_stmt *stmt = (sqlite_stmt*)malloc(sizeof(sqlite_stmt));
+	sqlite_prepare(zSqlCmd, pDb, &stmt);
+}
+
+void sqlite_prepare(const char *zSqlCmd, sqlite *pDb, sqlite_stmt **ppStmt) {
+	
 }

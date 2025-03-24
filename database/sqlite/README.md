@@ -72,4 +72,35 @@ int main(int argc, char **argv){
 }
 ```
 
+Similar to the above program we need these 3 functions to execute SQL statements. In our case we will use `sqlite` object which is same as the `sqlite3` in the official docs.
 
+For now I have the structure -
+
+```c
+typedef struct sqlite sqlite;
+
+struct sqlite {
+	char *zFilename;
+	int zFileDescriptor;
+};
+```
+
+We initialize the `sqlite` object using the `sqlite_open()` function. The function takes the database filename and opens it. It stores the file descriptor of the database file in the `sqlite` object.
+
+```c
+void sqlite_open(const char *zFilename, sqlite **ppDb) {
+	int fd;
+	fd = open(zFilename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	if(fd == -1) {
+		(*ppDb) = NULL;
+		return;
+	}
+
+	strcpy((*ppDb)->zFilename, zFilename);
+	(*ppDb)->zFiledescriptor = fd;
+}
+```
+
+After the database connection is established, we need to execute the sqlite command with `sqlite_exec` routine. So let's understand what happens inside the `sqlite_exec` routine.
+
+The execution starts first by tokenizing the sql text command. The tokenizer concept is discussed [here](../tokenizer/README.md).
