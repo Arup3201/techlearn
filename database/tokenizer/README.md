@@ -40,4 +40,16 @@ CLOSE_PARENTHESIS
 SEMICOLON
 ```
 
+In SQL the tokens can be divided into the following categories -
+
+1. Keywords: `INSERT`, `DELETE`, `CREATE`, `UPDATE` etc.
+2. Identifiers: `users`, `id`, `name` etc.
+3. Operators: `>=`, `>`, `==` etc.
+4. Literals: strings, integers, NULL etc.
+5. Delimiters: `;`, `,`, `(`, `)` etc.
+6. Comments: `--single line comment`, `/* multi-line comment */` etc.
+
+We can use finite state automata (or finite state machine) to build the tokenizer that can tokenize SQL text.
+
+The finite state machine transition table is as follows -
 
