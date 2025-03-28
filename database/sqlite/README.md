@@ -104,3 +104,20 @@ void sqlite_open(const char *zFilename, sqlite **ppDb) {
 After the database connection is established, we need to execute the sqlite command with `sqlite_exec` routine. So let's understand what happens inside the `sqlite_exec` routine.
 
 The execution starts first by tokenizing the sql text command. The tokenizer concept is discussed [here](../tokenizer/README.md).
+
+In our SQLite example, we are going to support the following operations -
+
+- CREATE 
+- INSERT 
+- UPDATE 
+- DELETE
+- SELECT 
+
+Following are the syntax for the 5 operations in SQLite -
+
+- `CREATE TABLE t1(a, b PRIMARY KEY);`, `CREATE TABLE t1(a, b UNIQUE);`. `PRIMARY KEY`, `UNIQUE`, `IF NOT EXIST`, `NULL`, and `NOT NULL` etc.
+- `SELECT a, b, c FROM t1`, `SELECT a, b, sum(c) FROM t1 GROUP BY a`, `SELECT a, b, max(c) FROM t1 GROUP BY a` and `SELECT a, b, c FROM t1 ORDER BY a`. `sum`, `max`, `min`, `GROUP BY`, `ORDER BY` and `LIMIT`.
+
+## CREATE Tokenize 
+
+
