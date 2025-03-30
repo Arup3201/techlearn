@@ -120,4 +120,8 @@ Following are the syntax for the 5 operations in SQLite -
 
 ## CREATE Tokenize 
 
+SQLite breaks the input text into tokens which are then parsed to the parser component. SQLite statements are composed of unicode characters. Like if we have a character like `a` then it will represented by the unicode character `u0061` and for `&` it will represent it using `u0024`.
+
+To understand the SQLite tokenizer requirements, you can look into the [official SQLite documentation](https://www.sqlite.org/draft/tokenreq.html).
+
 

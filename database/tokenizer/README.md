@@ -49,7 +49,4 @@ In SQL the tokens can be divided into the following categories -
 5. Delimiters: `;`, `,`, `(`, `)` etc.
 6. Comments: `--single line comment`, `/* multi-line comment */` etc.
 
-We can use finite state automata (or finite state machine) to build the tokenizer that can tokenize SQL text.
-
-The finite state machine transition table is as follows -
-
+For the tokenization I will treat every input character in unicode (e.g `u0061`).
