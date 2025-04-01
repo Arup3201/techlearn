@@ -49,4 +49,4 @@ In SQL the tokens can be divided into the following categories -
 5. Delimiters: `;`, `,`, `(`, `)` etc.
 6. Comments: `--single line comment`, `/* multi-line comment */` etc.
 
-For the tokenization I will treat every input character in unicode (e.g `u0061`).
+For the tokenization I will treat every input character in unicode (e.g `u0061`). 
