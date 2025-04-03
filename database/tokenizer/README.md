@@ -49,5 +49,32 @@ In SQL the tokens can be divided into the following categories -
 5. Delimiters: `;`, `,`, `(`, `)` etc.
 6. Comments: `--single line comment`, `/* multi-line comment */` etc.
 
-For the tokenization I will treat every input character in unicode (e.g `u0061`). And then match them with character values equal to whitespace, alphabetic, numeric, special and hexadecimal.
+For tokenizing, we need to first ignore the whitespace and comments. So, we need to find the whitespace and comments first.
 
+1. Whitespace character: One of these five characters: u0009, u000a, u000c, u000d, or u0020.
+```c
+bool isSpace(char ch) {
+	return (ch == 0x0009) || (ch == 0x000a) || (ch == 0x000d) || (ch == 0x0020);
+}
+```
+2. Single line comments (`--`) and multi-line comments (`/*...*/`) should be ignored just like whitespace.
+```c
+bool isComment(const char** ptr) {
+	// single line comments (--)
+	if(*ptr[0] == 0x002d || *ptr[1] == 0x002d) {
+		*ptr += 2;
+		while(**ptr != '\n') (*ptr)++;
+		return true;
+	}
+
+	// multi line comments (/* ... */)
+	if(**ptr == 0x002f && *(*ptr+1) == 0x002a) {
+		(*ptr) += 2;
+		while(**ptr != 0x002a && *(*ptr+1) != 0x002f) (*ptr)++;
+		(*ptr) += 1;
+		return true;
+	}
+
+	return false;
+}
+```

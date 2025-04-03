@@ -1,15 +1,45 @@
 #include<stdio.h>
-#include<locale.h>
 #include<fcntl.h>
 #include<unistd.h>
 #include<stdbool.h>
 
 #define MAX_BUFFER_SIZE 1024
 
+bool isSpace(char ch) {
+	return (ch == 0x0009) || (ch == 0x000a) || (ch == 0x000d) || (ch == 0x0020);
+}
+
+bool isComment(const char** ptr) {
+	// single line comments (--)
+	if(*ptr[0] == 0x002d || *ptr[1] == 0x002d) {
+		*ptr += 2;
+		while(**ptr != '\n') (*ptr)++;
+		return true;
+	}
+
+	// multi line comments (/* ... */)
+	if(**ptr == 0x002f && *(*ptr+1) == 0x002a) {
+		(*ptr) += 2;
+		while(**ptr != 0x002a && *(*ptr+1) != 0x002f) (*ptr)++;
+		(*ptr) += 1;
+		return true;
+	}
+
+	return false;
+}
+
 /** 
  * tokenize the sql text input `sql`
  */
-void tokenize(const char *sql) {
+void tokenize(const char *ptr) {
+	while(*ptr) {
+		while(isSpace(*ptr) || isComment(&ptr)) {
+			fprintf(stdout, "\n");
+			ptr++;
+		}
+		fprintf(stdout, "%c", *ptr);
+		ptr++;
+	}
 }
 
 int main(int argc, char *argv[]) {
