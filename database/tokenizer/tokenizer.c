@@ -28,18 +28,25 @@ bool isComment(const char** ptr) {
 	return false;
 }
 
-bool isDigit(char **ptr) {
-	// character is in between 0 and 9
-	if(**ptr >= 0x0030 && **ptr <= 0x0039) {
-		while(**ptr >= 0x0030 && **ptr <= 0x0039) {
-			(*ptr)++;
-		}
+bool isDigit(char ch) {
+	if(ch >= 0x0030 && ch <= 0x0039) {
 		return true;
 	}
 
 	return false;
 }
 
+bool isAlpha(char ch) {
+	if((ch >= 0x0041 && ch <= 0x005a) || (ch >= 0x0061 && ch <= 0x007a)) {
+		return true;
+	}
+
+	return false;
+}
+
+bool isSpecial(char ch) {
+	return (!isDigit(ch) || !isAlpha(ch) || !isSpace(ch));
+}
 
 /** 
  * tokenize the sql text input `sql`
@@ -50,6 +57,16 @@ void tokenize(const char *ptr) {
 			fprintf(stdout, "\n");
 			ptr++;
 		}
+
+		switch(*ptr) {
+			case isDigit(*ptr): 
+				while(isDigit(*ptr) {
+					
+				}
+				break;
+
+		}
+
 		fprintf(stdout, "%c", *ptr);
 		ptr++;
 	}
