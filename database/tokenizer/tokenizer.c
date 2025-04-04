@@ -28,6 +28,19 @@ bool isComment(const char** ptr) {
 	return false;
 }
 
+bool isDigit(char **ptr) {
+	// character is in between 0 and 9
+	if(**ptr >= 0x0030 && **ptr <= 0x0039) {
+		while(**ptr >= 0x0030 && **ptr <= 0x0039) {
+			(*ptr)++;
+		}
+		return true;
+	}
+
+	return false;
+}
+
+
 /** 
  * tokenize the sql text input `sql`
  */
