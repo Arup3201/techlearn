@@ -81,3 +81,9 @@ When moving the **forward** we need to check if we have reached the end of the c
 When moving the **forward** we need to check 2 things - whether we have reached end of the buffer and what character did we read. We can combine these 2 checks into 1 by using **sentinels** at the end of each buffer. Here, we will use **eof** as the sentinel because it is a special character that will never appear in the source code.
 
 **eof** can appear when it is the end of input string or it is the end of buffer.
+
+## Regular Expression
+
+## Recognition of Tokens 
+
+
