@@ -3,6 +3,31 @@
 #include<unistd.h>
 
 #define BUFFER_SIZE 2
+#define SENTINEL '\0'
+
+typedef enum TokenType {
+	CREATE, 
+	TABLE, 
+	SELECT, 
+	FROM, 
+	WHERE, 
+	SPACE
+}TokenType;
+
+int loadBufferContent(char *buffer, int fd) {
+	int n = read(fd, buffer, BUFFER_SIZE);
+	buffer[BUFFER_SIZE] = SENTINEL;
+	return n;
+}
+
+TokenType getToken(char *buffer, char *lexemeBegin, char *forward) {
+	// start from lexemeBegin 
+	// check the current character 
+	// if space then proceed forward
+	// if alphabetic then reach the end of the current lexeme, match with any possible token type 
+
+	return SPACE;
+}
 
 int main(int argc, char* argv[]) {
 	if(argc < 2) {
@@ -11,21 +36,31 @@ int main(int argc, char* argv[]) {
 	}
 
 	// 2 buffer scheme
-	char buffer1[BUFFER_SIZE+1], buffer2[BUFFER_SIZE+1];
-	buffer1[BUFFER_SIZE] = EOF;
-	buffer2[BUFFER_SIZE] = EOF;
+	char buffers[2][BUFFER_SIZE + 1];
+	int fd = open(argv[1], O_RDONLY, S_IRUSR);
+	int activeBuf = 0, n = 0;
 
-	char *ioBuf = buffer1;
+	char *lexemeBegin, *forward;
+	TokenType token;
+	while((n = loadBufferContent(buffers[activeBuf], fd)) > 0) {
+		// activeBuf buffer has the source code (partial)
+		
+		// lexemeBegin will point to the start of current lexeme and forward will proceed untill a valid token is found
+		lexemeBegin = buffers[activeBuf];
+		forward = lexemeBegin;
 
-	int fd = open(argv[1], O_RDONLY, S_IRUSR), n=0;
-	while((n = read(fd, ioBuf, BUFFER_SIZE)) > 0) {
-		if(n >= BUFFER_SIZE) {
-			if(ioBuf == buffer1) ioBuf = buffer2;
-			else ioBuf = buffer1;
+		token = getToken(buffers[activeBuf], lexemeBegin, forward);
+		switch(token) {
+			case CREATE:
+				printf("<CREATE>\n");
+				break;
+			default:
+				printf("<TOKEN\n");
 		}
 
-		fprintf(stdout, "%s", ioBuf);
+		activeBuf = 1 - activeBuf;
 	}
-	printf("\n");
+
+	close(fd);
 	return 0;
 }
