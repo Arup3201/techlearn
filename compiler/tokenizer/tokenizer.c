@@ -1,32 +1,32 @@
 #include<stdio.h>
 #include<fcntl.h>
 #include<unistd.h>
+#include<stdbool.h>
+#include<stdlib.h>
 
-#define BUFFER_SIZE 2
-#define SENTINEL '\0'
+#include "tokenizer.h"
 
-typedef enum TokenType {
-	CREATE, 
-	TABLE, 
-	SELECT, 
-	FROM, 
-	WHERE, 
-	SPACE
-}TokenType;
+typedef struct Tokenizer Tokenizer;
+typedef enum TokenType TokenType;
 
-int loadBufferContent(char *buffer, int fd) {
-	int n = read(fd, buffer, BUFFER_SIZE);
-	buffer[BUFFER_SIZE] = SENTINEL;
-	return n;
+void initTokenizer(Tokenizer *t, char *fname) {
+	Tokenizer *tokenizer = (Tokenizer*)malloc(sizeof(Tokenizer));
+	tokenizer->tFd = open(fname, O_RDONLY, S_IRUSR);
+	tokenizer->active = 0;
+	read(tokenizer->tFd, tokenizer->buffers[tokenizer->active], BUFFER_SIZE);
+	tokenizer->lexemeBegin = tokenizer->buffers[tokenizer->active];
+	tokenizer->forward = tokenizer->lexemeBegin;
 }
 
-TokenType getToken(char *buffer, char *lexemeBegin, char *forward) {
-	// start from lexemeBegin 
-	// check the current character 
-	// if space then proceed forward
-	// if alphabetic then reach the end of the current lexeme, match with any possible token type 
+void destroyTokenizer(Tokenizer *t) {
+	close(t->tFd);
+	t->lexemeBegin = NULL;
+	t->forward = NULL;
+	free(t);
+}
 
-	return SPACE;
+bool isSpace(char ch) {
+	return ch == ' ';
 }
 
 int main(int argc, char* argv[]) {
@@ -35,32 +35,11 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	// 2 buffer scheme
-	char buffers[2][BUFFER_SIZE + 1];
-	int fd = open(argv[1], O_RDONLY, S_IRUSR);
-	int activeBuf = 0, n = 0;
+	Tokenizer tokenizer;
+	initTokenizer(&tokenizer, argv[1]);
+	
+	
 
-	char *lexemeBegin, *forward;
-	TokenType token;
-	while((n = loadBufferContent(buffers[activeBuf], fd)) > 0) {
-		// activeBuf buffer has the source code (partial)
-		
-		// lexemeBegin will point to the start of current lexeme and forward will proceed untill a valid token is found
-		lexemeBegin = buffers[activeBuf];
-		forward = lexemeBegin;
-
-		token = getToken(buffers[activeBuf], lexemeBegin, forward);
-		switch(token) {
-			case CREATE:
-				printf("<CREATE>\n");
-				break;
-			default:
-				printf("<TOKEN\n");
-		}
-
-		activeBuf = 1 - activeBuf;
-	}
-
-	close(fd);
+	destroyTokenizer(&tokenizer);
 	return 0;
 }
