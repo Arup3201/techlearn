@@ -82,8 +82,112 @@ When moving the **forward** we need to check 2 things - whether we have reached 
 
 **eof** can appear when it is the end of input string or it is the end of buffer.
 
+The way of reading the source code with 2 buffers is shown here:
+
+```c
+int main(int argc, char* argv[]) {
+	if(argc < 2) {
+		fprintf(stdout, "format: %s filename\n", argv[0]);
+		return 1;
+	}
+
+	Tokenizer *tokenizer;
+	tokenizer = getTokenizer(argv[1]);	
+
+	while(*tokenizer->forward != SENTINEL) {
+		printf("%c", *tokenizer->forward);
+
+		moveForward(tokenizer);
+	}
+
+	freeTokenizer(tokenizer);
+	return 0;
+}
+```
+
+Untill the `forward` is pointing to sentinel, we will process the source code character by character and every time we move the `forward` pointer with the following logic:
+
+```c
+void moveForward(Tokenizer *t) {
+	if(*(t->forward+1) == SENTINEL) {
+		reloadBuffer(t);
+		t->forward = t->buffers[t->active];
+	} else {
+		t->forward++;
+	}
+}
+```
+
+When the next character is sentinel, we reload the second buffer (assuming the first buffer was active) and then `forward` will point to the beginning of the second buffer, Otherwise we just increase the `forward` by 1.
+
+In this code, I have used `Tokenizer` which has the following structure:
+
+```c
+struct Tokenizer {
+	int tFd; // file descriptor of the file we are tokenizing
+	char buffers[2][BUFFER_SIZE+1]; // 2 buffer scheme 
+	int active; // active buffer 
+	char *lexemeBegin;
+	char *forward;
+};
+```
+
+We first get the tokenizer and at last we destroy the tokenizer. When initializing the tokenizer object, we read the source code, and by default make the first buffer active and put the source code (partial) in that buffer.
+
+```c
+Tokenizer* getTokenizer(char *fname) {
+	Tokenizer *tokenizer = (Tokenizer*)malloc(sizeof(Tokenizer));
+
+	tokenizer->tFd = open(fname, O_RDONLY, S_IRUSR);
+	read(tokenizer->tFd, tokenizer->buffers[0], BUFFER_SIZE);
+	tokenizer->buffers[0][BUFFER_SIZE] = SENTINEL;
+
+	tokenizer->active = 0;
+	tokenizer->lexemeBegin = tokenizer->buffers[tokenizer->active];
+	tokenizer->forward = tokenizer->lexemeBegin;
+
+	return tokenizer;
+}
+```
+
+When reloading the buffer, we set the first character of the previously active buffer equal to sentinel so that the stopping condition in the `main` function work.
+
+```c
+void reloadBuffer(Tokenizer *t) {
+	*t->buffers[t->active] = SENTINEL;
+
+	t->active = 1 - t->active;
+	read(t->tFd, t->buffers[t->active], BUFFER_SIZE);
+}
+```
+
 ## Regular Expression
+
+In lexical analysis the most important operations on languages are union, concatenation and closures. Union is the same operation as in sets (e.g. {1, 2}U{3, 4} = {1, 2, 3, 4}). Concatenation is the operation of taking a string from first language and another string from second language, in all possible ways and concatenating them together. Closure can be Kleene closure and positive closure. In Kleene closure, denoted as $L^*$, we concatenate strings from L zero or more times. In positive closure, denoted by $L^+$ we concatenate strings from L one or more times.
+
+Some extensions of regular expressions:
+
+- one or many instances: (r+)
+- zero or one instance: (r?)
+- character class: when the regular expression makes a logical sequence, it can be written with character class e.g. a|b|c|...|z can be written as [a-z]. For digits it can be [0-9] etc.
+
+In C language identifiers can be written with the following regular expression:
+
+```
+letter_ = [A-Za-z_]
+digit = [0-9]
+id = letter_ | (letter_ | digit)
+```
+
+Numbers can be represented with the following regular expression:
+
+```
+digit = [0-9]
+digits = digit+
+number = digits (.digits)? (E[+-]?digits)?
+```
 
 ## Recognition of Tokens 
 
+### Seperating id and reserved keywords
 
