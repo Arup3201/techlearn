@@ -12,14 +12,20 @@ struct Tokenizer {
 	char *forward;
 };
 
+
 enum TokenType {
 	TOK_CREATE, 
 	TOK_TABLE, 
 	TOK_SELECT, 
 	TOK_FROM, 
 	TOK_WHERE, 
+	TOK_ID, 
 	TOK_SPACE
 };
 
+struct SymbolTable {
+	enum TokenType tokenType;
+	char tokenValue[128];
+};
 
 #endif

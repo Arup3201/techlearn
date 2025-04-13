@@ -189,5 +189,18 @@ number = digits (.digits)? (E[+-]?digits)?
 
 ## Recognition of Tokens 
 
+We give the job of splitting the source code using whitespace `ws`. `ws` has the following regular expression:
+
+```
+ws = (tab | blank | new line)+
+```
+
 ### Seperating id and reserved keywords
+
+Keywords also follow the same pattern like id. So, it is important to seperate them. To seperate we do the following:
+
+- we create a symbol table which contains token type, and attribute value.
+- when we encounter an id we call `installId` to install the identifier in the symbol table if that identifier does not exist, then we return the token type which is id.
+- if the id is a keyword then the `installId` call will not do anything as there is already a token with that name and `getToken` returns keywords instead of id.
+
 
