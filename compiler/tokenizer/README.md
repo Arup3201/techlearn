@@ -195,6 +195,104 @@ We give the job of splitting the source code using whitespace `ws`. `ws` has the
 ws = (tab | blank | new line)+
 ```
 
+We also need to avoid comments (single and multi line comments) and then try to check which token type the lexeme is.
+
+Following code checks whether the source code contains `ws` or not, if so then it will move the `forward` pointer till non `ws` character in the source code.
+
+```c
+void skipSpaces(Tokenizer *t) {
+	while(*t->forward==' ' || *t->forward=='\t' || *t->forward=='\n') moveForward(t);
+}
+```
+
+It is a little complex for comments. For single line comment and multi line comment we check them with the following code:
+
+```c
+void skipComments(Tokenizer *t) {
+	if(*t->forward == '-') {
+		moveForward(t);
+
+		if(*t->forward == '-') {
+			while(*t->forward != SENTINEL && *t->forward != '\n') moveForward(t);
+
+			if(*t->forward == SENTINEL) return;
+			
+			moveForward(t);
+			return;
+		} else {
+			retractForward(t);
+			return;
+		}
+	}
+
+	if(*t->forward == '/') {
+		moveForward(t);
+
+		if(*t->forward == '*') {
+			while(*t->forward != SENTINEL) {
+				moveForward(t);
+				
+				if(*t->forward == '*') {
+					moveForward(t);
+
+					if(*t->forward == '/') {
+						moveForward(t);
+						return;
+					}
+				}
+			}
+
+		} else {
+			retractForward(t);
+			return;
+		}
+	}
+
+	return;
+}
+```
+
+Let's break down the `skipComments` function:
+
+- if we encounter `-` then it might be the start of the single line comment. So, we move forward for the next character. If the next character is another `-` then we know it is a single line comment otherwise we retract forward by 1 using `retractForward` function.
+- if it is a single line comment then we move forward untill we reach a new line or the end of the file.
+- if we reach end of file in the case of single line comment then we return here otherwise we move forward by one to the new line character.
+- if we encounter `/` then it might be the start of a multi-line comment, we move forward by 1 to check if the next character is `*`. If it is, then we know it is the start of a multi line comment otherwise we retract the `forward` by 1 and return.
+- if it is the start of a multi line comment then we move forward untill we reach the end of file or `*`.
+- if we reach end of file, then it means the multi line comment did not end
+- if we reach `*` then we move forward by 1 and check the next character is `/` or not. If it is then we are at the end of multi line comment. So we move forward by 1 and return.
+- if we do not find `/` then we proceed with the while loop.
+
+The loop will updated with the `skipSpaces` and `skipComments` as follows:
+
+```c
+while(*tokenizer->forward != SENTINEL) {
+    skipSpaces(tokenizer);
+    skipComments(tokenizer);
+
+    if(*tokenizer->forward == SENTINEL) {
+        break;
+    }
+
+    moveForward(tokenizer);
+}
+```
+
+Because the `skipComments` function can proceed the `forward` till eof, we need to put a check on that and break the loop if true.
+
+The code to retract the `forward` is as follows:
+
+```c
+void retractForward(Tokenizer *t) {
+	if(t->forward == t->buffers[t->active]) {
+		t->active = 1 - t->active;
+		t->forward = t->buffers[t->active];
+	} else {
+		t->forward--;
+	}
+}
+```
+
 ### Seperating id and reserved keywords
 
 Keywords also follow the same pattern like id. So, it is important to seperate them. To seperate we do the following:

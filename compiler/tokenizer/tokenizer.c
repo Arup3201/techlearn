@@ -131,6 +131,16 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 
+		if(
+			(*tokenizer->forward >= 'a' && *tokenizer->forward <= 'z') 
+			||
+			(*tokenizer->forward >= 'A' && *tokenizer->forward <= 'Z')
+			||
+			(*tokenizer->forward == '_')
+		  ) {
+			
+		}
+
 		printf("%c", *tokenizer->forward);
 
 		moveForward(tokenizer);

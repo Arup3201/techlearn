@@ -20,12 +20,11 @@ enum TokenType {
 	TOK_FROM, 
 	TOK_WHERE, 
 	TOK_ID, 
-	TOK_SPACE
 };
 
 struct SymbolTable {
-	enum TokenType tokenType;
-	char tokenValue[128];
+	char lexeme[128];
+	TokenType token;
 };
 
 #endif
