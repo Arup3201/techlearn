@@ -22,6 +22,13 @@ Tokenizer* getTokenizer(char *fname) {
 	tokenizer->lexemeBegin = tokenizer->buffers[tokenizer->active];
 	tokenizer->forward = tokenizer->lexemeBegin;
 
+	tokenizer->symbolTable = calloc(NUM_KEYWORDS, sizeof(SymbolTable));
+
+	for(int i=0; i<NUM_KEYWORDS; i++) {
+		strcpy(tokenizer->symbolTable->lexeme, KEYWORDS[i]);
+		tokenizer->symbolTable->token = TOK_KEYWORD;
+	}
+
 	return tokenizer;
 }
 
@@ -113,6 +120,22 @@ void freeTokenizer(Tokenizer *t) {
 	free(t);
 }
 
+bool isLetter_(char ch) {
+	return ((ch >= 'a' && ch <= 'z') 
+		||
+		(ch >= 'A' && ch <= 'Z')
+		||
+		(ch == '_'));
+}
+
+void installId(Tokenizer *t, char *lexeme) {
+	
+}
+
+TokenType getToken(Tokenizer *t, char *lexeme) {
+
+}
+
 int main(int argc, char* argv[]) {
 	if(argc < 2) {
 		fprintf(stdout, "format: %s filename\n", argv[0]);
@@ -120,7 +143,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	Tokenizer *tokenizer;
-	tokenizer = getTokenizer(argv[1]);	
+	tokenizer = getTokenizer(argv[1]);
 
 	while(*tokenizer->forward != SENTINEL) {
 		skipSpaces(tokenizer);
@@ -131,17 +154,23 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 
-		if(
-			(*tokenizer->forward >= 'a' && *tokenizer->forward <= 'z') 
-			||
-			(*tokenizer->forward >= 'A' && *tokenizer->forward <= 'Z')
-			||
-			(*tokenizer->forward == '_')
-		  ) {
-			
-		}
+		tokenizer->lexemeBegin = tokenizer->forward;
 
-		printf("%c", *tokenizer->forward);
+		if(isLetter_(*tokenizer->forward)) {
+			moveForward(tokenizer);
+			while(isLetter_(*tokenizer->forward)) moveForward(tokenizer);
+			retractForward(tokenizer);
+
+			int length = tokenizer->forward - tokenizer->lexemeBegin + 1;
+			char t[length+1];
+			memcpy(t, tokenizer->lexemeBegin, length);
+			t[length] = '\0';
+
+			// t contains the id/keyword
+			installId(tokenizer, t);
+
+			printf("%d\n", getToken(tokenizer, t));
+		}
 
 		moveForward(tokenizer);
 	}
