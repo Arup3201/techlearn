@@ -25,8 +25,8 @@ Tokenizer* getTokenizer(char *fname) {
 	tokenizer->symbolTable = calloc(NUM_KEYWORDS, sizeof(SymbolTable));
 
 	for(int i=0; i<NUM_KEYWORDS; i++) {
-		strcpy(tokenizer->symbolTable->lexeme, KEYWORDS[i]);
-		tokenizer->symbolTable->token = TOK_KEYWORD;
+		strcpy(tokenizer->symbolTable[i].lexeme, KEYWORDS[i]);
+		tokenizer->symbolTable[i].token = TOK_KEYWORD;
 	}
 
 	return tokenizer;
@@ -145,35 +145,39 @@ int main(int argc, char* argv[]) {
 	Tokenizer *tokenizer;
 	tokenizer = getTokenizer(argv[1]);
 
-	while(*tokenizer->forward != SENTINEL) {
-		skipSpaces(tokenizer);
-		skipComments(tokenizer);
-
-		// when the comment ended with eof instead of new line(single line comment) or */ (multi line comment)
-		if(*tokenizer->forward == SENTINEL) {
-			break;
-		}
-
-		tokenizer->lexemeBegin = tokenizer->forward;
-
-		if(isLetter_(*tokenizer->forward)) {
-			moveForward(tokenizer);
-			while(isLetter_(*tokenizer->forward)) moveForward(tokenizer);
-			retractForward(tokenizer);
-
-			int length = tokenizer->forward - tokenizer->lexemeBegin + 1;
-			char t[length+1];
-			memcpy(t, tokenizer->lexemeBegin, length);
-			t[length] = '\0';
-
-			// t contains the id/keyword
-			installId(tokenizer, t);
-
-			printf("%d\n", getToken(tokenizer, t));
-		}
-
-		moveForward(tokenizer);
+	for(int i=0; i<NUM_KEYWORDS; i++) {
+		printf("%s => %d\n", tokenizer->symbolTable[i].lexeme, tokenizer->symbolTable[i].token);
 	}
+
+//	while(*tokenizer->forward != SENTINEL) {
+//		skipSpaces(tokenizer);
+//		skipComments(tokenizer);
+//
+//		// when the comment ended with eof instead of new line(single line comment) or */ (multi line comment)
+//		if(*tokenizer->forward == SENTINEL) {
+//			break;
+//		}
+//
+//		tokenizer->lexemeBegin = tokenizer->forward;
+//
+//		if(isLetter_(*tokenizer->forward)) {
+//			moveForward(tokenizer);
+//			while(isLetter_(*tokenizer->forward)) moveForward(tokenizer);
+//			retractForward(tokenizer);
+//
+//			int length = tokenizer->forward - tokenizer->lexemeBegin + 1;
+//			char t[length+1];
+//			memcpy(t, tokenizer->lexemeBegin, length);
+//			t[length] = '\0';
+//
+//			// t contains the id/keyword
+//			installId(tokenizer, t);
+//
+//			printf("%d\n", getToken(tokenizer, t));
+//		}
+//
+//		moveForward(tokenizer);
+//	}
 
 	freeTokenizer(tokenizer);
 	return 0;
