@@ -6,10 +6,13 @@
 #include<string.h>
 
 #include "tokenizer.h"
+#include "util.h"
 
 typedef struct Tokenizer Tokenizer;
 typedef enum TokenType TokenType;
 typedef struct SymbolTable SymbolTable;
+
+const int NUM_KEYWORDS = sizeof(KEYWORDS)/sizeof(KEYWORDS[0]);
 
 Tokenizer* getTokenizer(char *fname) {
 	Tokenizer *tokenizer = (Tokenizer*)malloc(sizeof(Tokenizer));
@@ -23,10 +26,12 @@ Tokenizer* getTokenizer(char *fname) {
 	tokenizer->forward = tokenizer->lexemeBegin;
 
 	tokenizer->symbolTable = calloc(NUM_KEYWORDS, sizeof(SymbolTable));
+	tokenizer->stLen = 0;
 
 	for(int i=0; i<NUM_KEYWORDS; i++) {
 		strcpy(tokenizer->symbolTable[i].lexeme, KEYWORDS[i]);
 		tokenizer->symbolTable[i].token = TOK_KEYWORD;
+		tokenizer->stLen += 1;
 	}
 
 	return tokenizer;
@@ -128,12 +133,48 @@ bool isLetter_(char ch) {
 		(ch == '_'));
 }
 
+char* getLexeme(Tokenizer *t) {
+	char *lexeme;
+	if(((t->lexemeBegin>=t->buffers[0] && t->lexemeBegin<t->buffers[0]+BUFFER_SIZE) && (t->forward >= t->buffers[1] && t->forward < t->buffers[1]+BUFFER_SIZE)) || ((t->lexemeBegin>=t->buffers[1] && t->lexemeBegin < t->buffers[1]+BUFFER_SIZE) && (t->forward >= t->buffers[0] && t->forward < t->buffers[0]+BUFFER_SIZE))
+	) {
+		int part1Len = t->buffers[1-t->active] + BUFFER_SIZE - t->lexemeBegin;
+		int part2Len = t->forward - t->buffers[t->active];
+
+		lexeme = malloc(part1Len+part2Len);
+		memcpy(lexeme, t->lexemeBegin, part1Len);
+		memcpy(lexeme+part1Len, t->buffers[t->active], part2Len);
+	} else {
+		int length = t->forward - t->lexemeBegin;
+		lexeme = malloc(length);	
+		memcpy(lexeme, t->lexemeBegin, length);
+		lexeme[length] = '\0';
+		memcpy(lexeme, t->lexemeBegin, length);
+	}
+
+
+	return lexeme;
+}
+
 void installId(Tokenizer *t, char *lexeme) {
-	
+	for(int i=0; i<t->stLen; i++) {
+		if(strcmp(t->symbolTable[i].lexeme, toLower(lexeme)) == 0) {
+				return;
+		}
+	}
+
+	strcpy(t->symbolTable[t->stLen].lexeme, lexeme);
+	t->symbolTable[t->stLen].token = TOK_ID;
+	t->stLen += 1;
 }
 
 TokenType getToken(Tokenizer *t, char *lexeme) {
+	for(int i=0; i<t->stLen; i++) {
+		if(strcmp(lexeme, t->symbolTable[i].lexeme) == 0) {
+			return t->symbolTable[i].token;
+		}
+	}
 
+	return TOK_ID;
 }
 
 int main(int argc, char* argv[]) {
@@ -145,39 +186,31 @@ int main(int argc, char* argv[]) {
 	Tokenizer *tokenizer;
 	tokenizer = getTokenizer(argv[1]);
 
-	for(int i=0; i<NUM_KEYWORDS; i++) {
-		printf("%s => %d\n", tokenizer->symbolTable[i].lexeme, tokenizer->symbolTable[i].token);
-	}
+	while(*tokenizer->forward != SENTINEL) {
+		skipSpaces(tokenizer);
+		skipComments(tokenizer);
 
-//	while(*tokenizer->forward != SENTINEL) {
-//		skipSpaces(tokenizer);
-//		skipComments(tokenizer);
-//
-//		// when the comment ended with eof instead of new line(single line comment) or */ (multi line comment)
-//		if(*tokenizer->forward == SENTINEL) {
-//			break;
-//		}
-//
-//		tokenizer->lexemeBegin = tokenizer->forward;
-//
-//		if(isLetter_(*tokenizer->forward)) {
-//			moveForward(tokenizer);
-//			while(isLetter_(*tokenizer->forward)) moveForward(tokenizer);
-//			retractForward(tokenizer);
-//
-//			int length = tokenizer->forward - tokenizer->lexemeBegin + 1;
-//			char t[length+1];
-//			memcpy(t, tokenizer->lexemeBegin, length);
-//			t[length] = '\0';
-//
-//			// t contains the id/keyword
-//			installId(tokenizer, t);
-//
-//			printf("%d\n", getToken(tokenizer, t));
-//		}
-//
-//		moveForward(tokenizer);
-//	}
+		// when the comment ended with eof instead of new line(single line comment) or */ (multi line comment)
+		if(*tokenizer->forward == SENTINEL) {
+			break;
+		}
+
+		tokenizer->lexemeBegin = tokenizer->forward;
+
+		if(isLetter_(*tokenizer->forward)) {
+			moveForward(tokenizer);
+			while(isLetter_(*tokenizer->forward)) moveForward(tokenizer);
+			retractForward(tokenizer);
+
+			char *lexeme = getLexeme(tokenizer);
+			// t contains the id/keyword
+			installId(tokenizer, lexeme);
+
+			printf("%s -> %d\n", lexeme, getToken(tokenizer, lexeme));
+		}
+
+		moveForward(tokenizer);
+	}
 
 	freeTokenizer(tokenizer);
 	return 0;

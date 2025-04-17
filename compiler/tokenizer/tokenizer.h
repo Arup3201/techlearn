@@ -5,7 +5,6 @@
 #define SENTINEL '\0'
 #define MAX_LEXEME_LEN 1024
 #define MAX_KEYWORD_LEN 1024
-#define NUM_KEYWORDS sizeof(KEYWORDS)/(MAX_KEYWORD_LEN*sizeof(KEYWORDS[0]))
 
 enum TokenType {
 	TOK_KEYWORD, 
@@ -15,7 +14,7 @@ enum TokenType {
 
 struct SymbolTable {
 	char lexeme[128];
-	TokenType token;
+	enum TokenType token;
 };
 
 struct Tokenizer {
@@ -24,7 +23,8 @@ struct Tokenizer {
 	int active; // active buffer 
 	char *lexemeBegin;
 	char *forward;
-	SymbolTable *symbolTable;
+	struct SymbolTable *symbolTable;
+	int stLen;
 };
 
 const char KEYWORDS[][MAX_KEYWORD_LEN] = {"table", "create", "from", "select", "update", "delete"};
