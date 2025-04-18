@@ -136,21 +136,20 @@ bool isLetter_(char ch) {
 char* getLexeme(Tokenizer *t) {
 	char *lexeme;
 	if(((t->lexemeBegin>=t->buffers[0] && t->lexemeBegin<t->buffers[0]+BUFFER_SIZE) && (t->forward >= t->buffers[1] && t->forward < t->buffers[1]+BUFFER_SIZE)) || ((t->lexemeBegin>=t->buffers[1] && t->lexemeBegin < t->buffers[1]+BUFFER_SIZE) && (t->forward >= t->buffers[0] && t->forward < t->buffers[0]+BUFFER_SIZE))
-	) {
-		int part1Len = t->buffers[1-t->active] + BUFFER_SIZE - t->lexemeBegin;
-		int part2Len = t->forward - t->buffers[t->active];
-
-		lexeme = malloc(part1Len+part2Len);
-		memcpy(lexeme, t->lexemeBegin, part1Len);
-		memcpy(lexeme+part1Len, t->buffers[t->active], part2Len);
+	  ) {
+		int firstPartLen = t->buffers[1-t->active] + BUFFER_SIZE - t->lexemeBegin;
+		int secondPartLen = t->forward - t->buffers[t->active];
+		int length = firstPartLen+secondPartLen;
+		lexeme = malloc(length+1);
+		memcpy(lexeme, t->lexemeBegin, firstPartLen);
+		memcpy(lexeme+firstPartLen, t->buffers[t->active], secondPartLen);
+		lexeme[length] = '\0';
 	} else {
-		int length = t->forward - t->lexemeBegin;
-		lexeme = malloc(length);	
+		int length = t->forward - t->lexemeBegin + 1;
+		lexeme = malloc(length+1);
 		memcpy(lexeme, t->lexemeBegin, length);
 		lexeme[length] = '\0';
-		memcpy(lexeme, t->lexemeBegin, length);
 	}
-
 
 	return lexeme;
 }

@@ -1,7 +1,7 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
-#define BUFFER_SIZE 2
+#define BUFFER_SIZE 8
 #define SENTINEL '\0'
 #define MAX_LEXEME_LEN 1024
 #define MAX_KEYWORD_LEN 1024
