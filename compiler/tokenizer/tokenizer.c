@@ -134,8 +134,13 @@ bool isLetter_(char ch) {
 }
 
 char* getLexeme(Tokenizer *t) {
+	printf("%p-%p\n", t->lexemeBegin, t->forward);
 	char *lexeme;
-	if(((t->lexemeBegin>=t->buffers[0] && t->lexemeBegin<t->buffers[0]+BUFFER_SIZE) && (t->forward >= t->buffers[1] && t->forward < t->buffers[1]+BUFFER_SIZE)) || ((t->lexemeBegin>=t->buffers[1] && t->lexemeBegin < t->buffers[1]+BUFFER_SIZE) && (t->forward >= t->buffers[0] && t->forward < t->buffers[0]+BUFFER_SIZE))
+	if(       ((t->lexemeBegin>=t->buffers[0] && t->lexemeBegin<t->buffers[0]+BUFFER_SIZE) 
+		&& (t->forward >= t->buffers[1] && t->forward < t->buffers[1]+BUFFER_SIZE)) 
+	   || 
+		  ((t->lexemeBegin>=t->buffers[1] && t->lexemeBegin < t->buffers[1]+BUFFER_SIZE) 
+		&& (t->forward >= t->buffers[0] && t->forward < t->buffers[0]+BUFFER_SIZE))
 	  ) {
 		int firstPartLen = t->buffers[1-t->active] + BUFFER_SIZE - t->lexemeBegin;
 		int secondPartLen = t->forward - t->buffers[t->active];
@@ -197,7 +202,6 @@ int main(int argc, char* argv[]) {
 		tokenizer->lexemeBegin = tokenizer->forward;
 
 		if(isLetter_(*tokenizer->forward)) {
-			moveForward(tokenizer);
 			while(isLetter_(*tokenizer->forward)) moveForward(tokenizer);
 			retractForward(tokenizer);
 
@@ -205,7 +209,7 @@ int main(int argc, char* argv[]) {
 			// t contains the id/keyword
 			installId(tokenizer, lexeme);
 
-			printf("%s -> %d\n", lexeme, getToken(tokenizer, lexeme));
+			// printf("%s -> %d\n", lexeme, getToken(tokenizer, lexeme));
 		}
 
 		moveForward(tokenizer);
