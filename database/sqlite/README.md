@@ -1,127 +1,15 @@
-# Database - SQLite 
+# Database Design and Implementation
 
-Following theory is taken from the [YouTube video](https://www.youtube.com/watch?v=IrzF4r9hqlY). 
+DBMS are part of operating sysem, so let's discuss some concepts in OS before coming to DBMS. An operating system is a bridge between user applications and hardware resources. OS gives access to hardware resources through it's system calls. User application uses these system calls to implement the services. 
 
-## SQLite Architecture
+System calls are akin to ordinary function calls in the operating system space. They are the programming interface for the operating system. To make application interface portable accross multiple operating systems, POSIX (Portable Operating System Interface for Unix) defines a set of application programming interfaces (APIs).
 
-SQLite architecture can be divided into 2 parts -
+Applications don't directly call to these system calls instead they use the APIs just like functions which in turn invokes the system call to use the hardware services. For example, in Linux *libc* is a shared library that implements read, write, sleep etc APIs for C language applications.
 
-- One part is responsible for understanding the sql command that we have written, and generete bytecode for that command 
-- Another part will use this bytecode to process the data 
+An operating system distribution comes with *utilities*. Utilities are ready-made special standalone software programs that help users navigate the operating system more easily. Some utilities include compiler, assembler, loader, linker, debugger, database management system, shell, I/O operations etc. 
 
-The first part will have 4 components -
+A database management system is the utility that uses persistent storage system. It is important for us to know about the storage hardware that is used by DBMS. 
 
-1. Tokenizer: Commands will have some special parts inside them like `CREATE`, `INSERT`, `INTO` etc. The tokenizer will break the command into small tokens for further processing.
-2. Parser: After we get the tokens from the command, we need to check whether they make sense together. If the tokens together actually yield to some result or is it just a wrong statement? Parser will help us do that. It will generate a parse tree from the tokens and from the parse tree we can understand whether it is a correct command or not syntactically.
-3. Code Generator: Code generator will generate the byte code for the command. This bytecode will be used to process the data.
+## I/O Controller
 
-This part is also called the "frontend" of the SQLite database architecture. The other part is the "backend" that is responsible for data processing.
-
-The "backend" has the following components -
-
-1. Virtual Machine: Virtual machine or virtual database engine (VDBE in short) will get the bytecode and process the data. It is a big switch statement that decides whether to do select or insert or update based on the bytecode.
-2. B/B+ Tree: Virtual machine will use B-Tree to get the data from the disk. SQLite stores every table and index in a seperate b-tree. To access a table or index we need the page number and b-tree will get that page for us.
-3. Pager: Pager is responsible for making read/write operations on disk for pages. A database is stored in a disk as a single file. That file contains the database tables/indexes in the form of pages. It is an continuous array of pages. Every page is usually 4KB size nd they can be indexes using the page number. Pager also caches the recently accessed pages for faster operations. It also helps in ACID, locking management and rollback operation.
-4. Virtual File System: VFS is used to make sure we are supporting cross-platform pperations. It is a common layer to support different operations depending on the type of platform we are in. It is also called OS interface because it defines the interface for different operations in different OS.
-
-SQLite documentation on ["SQLite in 5 Minutes or Less"](https://sqlite.org/quickstart.html) explains how to use the SQLite C/C++ interface to build databases from C/C++ code.
-
-In this interface, the following routines are important -
-
-1. `sqlite3_open`: routine to open the database 
-2. `sqlite3_exec`: routine to execute the SQL command against the database 
-3. `sqlite3_close`: routine to close the database connection
-
-Following code block uses these 3 routines to run the command against the database for output (src: SQLite documentation).
-
-```c
-#include <stdio.h>
-#include <sqlite3.h>
-
-static int callback(void *NotUsed, int argc, char **argv, char **azColName){
-  int i;
-  for(i=0; i<argc; i++){
-    printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-  }
-  printf("\n");
-  return 0;
-}
-
-int main(int argc, char **argv){
-  sqlite3 *db;
-  char *zErrMsg = 0;
-  int rc;
-
-  if( argc!=3 ){
-    fprintf(stderr, "Usage: %s DATABASE SQL-STATEMENT\n", argv[0]);
-    return(1);
-  }
-  rc = sqlite3_open(argv[1], &db);
-  if( rc ){
-    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    sqlite3_close(db);
-    return(1);
-  }
-  rc = sqlite3_exec(db, argv[2], callback, 0, &zErrMsg);
-  if( rc!=SQLITE_OK ){
-    fprintf(stderr, "SQL error: %s\n", zErrMsg);
-    sqlite3_free(zErrMsg);
-  }
-  sqlite3_close(db);
-  return 0;
-}
-```
-
-Similar to the above program we need these 3 functions to execute SQL statements. In our case we will use `sqlite` object which is same as the `sqlite3` in the official docs.
-
-For now I have the structure -
-
-```c
-typedef struct sqlite sqlite;
-
-struct sqlite {
-	char *zFilename;
-	int zFileDescriptor;
-};
-```
-
-We initialize the `sqlite` object using the `sqlite_open()` function. The function takes the database filename and opens it. It stores the file descriptor of the database file in the `sqlite` object.
-
-```c
-void sqlite_open(const char *zFilename, sqlite **ppDb) {
-	int fd;
-	fd = open(zFilename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-	if(fd == -1) {
-		(*ppDb) = NULL;
-		return;
-	}
-
-	strcpy((*ppDb)->zFilename, zFilename);
-	(*ppDb)->zFiledescriptor = fd;
-}
-```
-
-After the database connection is established, we need to execute the sqlite command with `sqlite_exec` routine. So let's understand what happens inside the `sqlite_exec` routine.
-
-The execution starts first by tokenizing the sql text command. The tokenizer concept is discussed [here](../tokenizer/README.md).
-
-In our SQLite example, we are going to support the following operations -
-
-- CREATE 
-- INSERT 
-- UPDATE 
-- DELETE
-- SELECT 
-
-Following are the syntax for the 5 operations in SQLite -
-
-- `CREATE TABLE t1(a, b PRIMARY KEY);`, `CREATE TABLE t1(a, b UNIQUE);`. `PRIMARY KEY`, `UNIQUE`, `IF NOT EXIST`, `NULL`, and `NOT NULL` etc.
-- `SELECT a, b, c FROM t1`, `SELECT a, b, sum(c) FROM t1 GROUP BY a`, `SELECT a, b, max(c) FROM t1 GROUP BY a` and `SELECT a, b, c FROM t1 ORDER BY a`. `sum`, `max`, `min`, `GROUP BY`, `ORDER BY` and `LIMIT`.
-
-## CREATE Tokenize 
-
-SQLite breaks the input text into tokens which are then parsed to the parser component. SQLite statements are composed of unicode characters. Like if we have a character like `a` then it will represented by the unicode character `u0061` and for `&` it will represent it using `u0024`.
-
-To understand the SQLite tokenizer requirements, you can look into the [official SQLite documentation](https://www.sqlite.org/draft/tokenreq.html).
-
-
+I/O controllers are connect I/O devices with the host computer system. In modern compurer systems, the I/O controllers handle I/O operations on behalf of the main process. I/O controllers can carry out I/O operations without any intervention of the main process. The main processor starts the I/O operation by sending it the I/O command and the input data. The I/O controller then executes the I/O command in it's own speed, when it completes the command execution it sends the output and the status of the execution to processor.
