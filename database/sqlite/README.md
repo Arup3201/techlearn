@@ -13,3 +13,5 @@ A database management system is the utility that uses persistent storage system.
 ## I/O Controller
 
 I/O controllers are connect I/O devices with the host computer system. In modern compurer systems, the I/O controllers handle I/O operations on behalf of the main process. I/O controllers can carry out I/O operations without any intervention of the main process. The main processor starts the I/O operation by sending it the I/O command and the input data. The I/O controller then executes the I/O command in it's own speed, when it completes the command execution it sends the output and the status of the execution to processor.
+
+Almost all modern I/O handlers have interrupt circuits. When the controller wants the attention of the processor, it issues an interrupt by raising signal on it's outgoing interrupt request line which is connected to the interrupt pin of the processor. On receiving the interrupt, the processors stops it's current process execution and starts a new program which handles the interrupt. The interrupt handler collects the status information and output data from the controller. 
