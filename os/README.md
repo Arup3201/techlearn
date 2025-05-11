@@ -65,3 +65,9 @@ While a process is running scheduler may decide that other process also needs so
 
 After some time if the scheduler decides, it will put the previous process back into running state.
 
+### Implementation of Process
+
+Process related information are stored in the process table. Each entry in the table is called process control block. Process control blocks contain information of the program counter, registers, stack pointer, open files, scheduling information and many other things.
+
+The information in the process control block is useful for the time when the process goes from ready state to running state. With those data, the process can start just when it stopped without us realizing that it actually stopped.
+
