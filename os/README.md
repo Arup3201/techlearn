@@ -25,3 +25,5 @@ Process can be created in 4 situations -
 3. Many interactive operating system allow it's user to start a new process.
 
 4. In mainframe systems where users request batch jobs, when the OS decides that the resources are available it creates a new process and runs the next job in input queue.
+
+
