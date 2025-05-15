@@ -26,4 +26,48 @@ Process can be created in 4 situations -
 
 4. In mainframe systems where users request batch jobs, when the OS decides that the resources are available it creates a new process and runs the next job in input queue.
 
+### Process Termination
+
+After doing it's work all processes will terminate. There are 4 reasons why a process might terminate -
+
+- Normal Exit: A process has done it's work, and then it tells the operating system to terminate itself. Like a compiler after compiling the program, will stop it's execution. This call is `exit` in MINIX 3 system.
+- Error Exit: The process may discover a fatal error, and then it exits. For example a compiler is trying to compile a file that does not exist then it will simply exit.
+- Fatal Error Exit: The process may have some program bug which can cause termination for the process. It may be referencing wrong memory, accessing illegal resources, or dividing by zero.
+- Killed by other process: One process with the necessary authentication can execute the system call to terminate other processes.
+
+### Process Tree
+
+In an operating system when one process creates another process, the parent and child process become associated in some way. In MINIX 3, all the parent, children processes are part of process group. 
+
+When a signal occurs (example - keyword signal), it will reach all the members of that process group. The process could decide whether to listen to the signal, ignore it or take the default action (exiting).
+
+In MINIX 3, the boot image contains 2 servers **reincarnation server** and **init**. Reincaranation server restarts drivers and servers if they stop. Init uses the `/etc/rc` script to run all the drivers and servers that are not present in the boot image. All those processes become children process of reincarnation server, and when any of them stops it will be informed. Then it can start those drivers and servers again.
+
+This is a tolerance mechanism for MINIX 3 when any driver or server crashes.
+
+When init has done that, it will open the configuration file `/etc/ttytab` to see which terminals or virtual terminals exist. Init forks getty process for each one, getty execs login process, login process waits for keyboard input, after typing if the login is successful, then login execs a shell for that user. So, the shell is a child of init. After that any process created from shell will be a grandchildren of the init process.
+
+This is an example of how process tree works.
+
+### Process States
+
+Every process can be in any of the 3 states -
+
+1. Blocked
+2. Ready
+3. Running
+
+A process may go into blocked state when it is waiting for something to happen e.g inputs from keyboard. Then the process will only be starting again when the input is received. After the input, the process goes into ready state which means the process is ready to be executed by the CPU.
+
+In this time, if the CPU is idle then it will immediately start the process and the process will be in running state.
+
+While a process is running scheduler may decide that other process also needs some CPU execution, it may send the process in ready state and give other process the CPU utilization, making that process in running state.
+
+After some time if the scheduler decides, it will put the previous process back into running state.
+
+### Implementation of Process
+
+Process related information are stored in the process table. Each entry in the table is called process control block. Process control blocks contain information of the program counter, registers, stack pointer, open files, scheduling information and many other things.
+
+The information in the process control block is useful for the time when the process goes from ready state to running state. With those data, the process can start just when it stopped without us realizing that it actually stopped.
 
