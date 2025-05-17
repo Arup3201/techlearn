@@ -71,3 +71,8 @@ Process related information are stored in the process table. Each entry in the t
 
 The information in the process control block is useful for the time when the process goes from ready state to running state. With those data, the process can start just when it stopped without us realizing that it actually stopped.
 
+
+## References
+
+1. [Operating Systems - Design and Implementation (MINIX 3)](https://csc-knu.github.io/sys-prog/books/Andrew%20S.%20Tanenbaum%20-%20Operating%20Systems.%20Design%20and%20Implementation.pdf)
+2. [Operating System Concepts](https://os.ecci.ucr.ac.cr/slides/Abraham-Silberschatz-Operating-System-Concepts-10th-2018.pdf)
