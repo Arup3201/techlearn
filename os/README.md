@@ -73,7 +73,28 @@ The information in the process control block is useful for the time when the pro
 
 ## Race conditions
 
-Example:
+When two or more processes try to read/write to a shared data and the final output depends on who runs precisely when, is called race condition. Let's understand with a *printer spooler* example.
+
+When a program wants to print a file, it enters the filename in a spooler directory. There is another program *print daemon* which peridically checks if there are any files that need to be printed, if there is then it will remove the filename from the spooling directory and print the file.
+
+Let's take two process A and B who want to print a file. In the spooling directory there are multiple slots where filenames can be stored. There are two shared variables *in* and *out*. *in* variable tracks the slot which is empty, and *out* variable tracks the file which will be printed. Slot 0-3 are empty (files in those slots are already printed), and slot 4-6 are full. *in* variable is 7 and *out* is 4 right now.
+
+Process A decides to print a file, so it reads the *in* and stores 7 to store the file. Suddenly CPU decides to switch to Process B because A has run enough. Process B starts and reads *in* and stores 7 in it's local variable. Then it stores the filename at 7 and then increases *in* to 8. After some time, process A starts again, and stores a file at 7, increase the *in* to 8 again. Process A will soon get the file printed but process B will wait but never get it's file printed because it has lost the file in the middle.
+
+When a process tries to access any shared resource race conditions happen. In a process the section where the shared variable is accessed is called **critical section**. We need to take measure for that section to prevent the race condition problem.
+
+We have to make sure that another process does not enter the critical section when one process is already executing something in that section. Put in other words, we need **mutual exclusion** which ensures no 2 processes can access the critical section at the same time.
+
+The requirements to solve the mutual exclusion are -
+
+1. No two processes can be inside their critical section at the same time
+2. No assumptions can be made with the CPU speed
+3. No process outside it's critical section may block other processes
+4. No process have to wait forever to get inside it's critical section
+
+### Race Condition Example
+
+Two processes try to increment the count (shared variable). But different execution gives different final result for `count` because of race condition between the two processes.
 
 ```c
 #include<stdio.h>
