@@ -3,6 +3,7 @@
 #include<pthread.h>
 
 #define N 2
+#define MAX 1000000
 
 int count = 0;
 
@@ -16,7 +17,7 @@ void enter_region(int process) {
     interested[process] = true;
     turn = process;
 
-    while(turn==other && interested[other]==true);
+    while(turn==process && interested[other]==true);
 }
 
 void leave_region(int process) {
@@ -25,7 +26,7 @@ void leave_region(int process) {
 
 void* increment_count(void *arg) {
     int *process = arg;
-    for(int i=0; i<1000; i++) {
+    for(int i=0; i<MAX; i++) {
         enter_region(*process);
         count += 1;
         leave_region(*process);

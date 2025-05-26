@@ -124,6 +124,114 @@ int main() {
     return 0;
 }
 ```
+### Mutual exclusion methods
+
+**disabling interrupts**:
+
+For mutual exclusion, the easiest method is to disable all interrups when a process enters it's critical region and enable them when they leave the critical region. With interrups disabled, CPU will not switch to other process.
+
+This approach is not right because it is not a good idea to give user processes the power to turn interrupts off.
+
+**lock variable**: 
+
+The second approach is to use a *single shared variable (lock)*, initially 0. When a process wants to access it's critical section, it checks the lock is 1 or 0. If the lock is 0, the process sets it to 1, and enters the critical section. If the lock is 1, then it will wait till the other process leaves the critical section.
+
+But this idea has a fatal problem, which is same as the spooler directory. If one process tries to enter the critical section, it reads the lock and sees that it is 0. But suddenly CPU switched to another process. The other process checks the lock, it is 0, enters the critical section. CPU switches to the previous process again. It resumes from where it left, and enters the critical section. Now, 2 processes are in their critical section at the same time.
+
+**busy waiting**
+
+Another approach to mutual exclusion is to wait untill the turn becomes equal to process no. It is called *busy waiting* as we are waiting till the turn comes for the current process.
+
+Following is the pseudo-code for 2 processes:
+
+```c
+// Process 0
+while(TRUE) {
+    while(turn!=0);
+    critical_section();
+    turn=1;
+    noncritical_section();
+}
+
+// Process 1
+while(TRUE) {
+    while(turn!=1);
+    critical_section();
+    turn=0;
+    noncritical_section();
+}
+```
+
+In busy waiting, the problem is CPU will be wasting it's time if something goes wrong. For example, process 0 sets turn to 1 and goes into the noncritical region, process 1 then goes into the critical region, sets the turn to 0 and goes into the noncritical region. Process 0 quickly finshes the while loop, sets the turn to 1, and enters the noncritical region. Then process 0 goes back to while loop and gets stuck because process 1 still has not finished it's noncritical region even though it's turn has already come. So, process 0 will have to wait till process 1 finishes.
+
+### Peterson's algorithm
+
+Using the concept of lock variable and busy waiting, peterson's algorithm was designed where the processes will call *enter_region* and *leave_region* before and after it's critical section. If there are 2 processes, process 0 has to call *enter_region* before entering the critical region and wait if it is not safe to enter the critical region. If it is safe to enter the critical section, it executes the critical section, and leaves the critical section by calling *leave_region*.
+
+How does this solution works?
+
+Process 0 enters the *enter_region*, sets the turn to 0, and tells that it is interested to enter the critical region. It checks whether it is not his turn or other process is not interested to enter to the critical section. If so, it will enter the critical section, and when leaving it will change it's interested state to not interested. At this time, if process 1 tries to enter the region, it turns the turn to 1, says that it is interested but when it checks it notices that other process is already in the critical section so it waits.
+
+If both process enter the region at the same time, the last value will be the final value. Let's say process 1 enters last, makes the turn to 1. Process 0 will enter it's critical section immediately, but process 1 will have to wait.
+
+Following is the code that implements peterson's algorithm:
+
+```c
+#include<stdio.h>
+#include<stdbool.h>
+#include<pthread.h>
+
+#define N 2
+#define MAX 1000000
+
+int count = 0;
+
+int turn;
+bool interested[N];
+
+void enter_region(int process) {
+    int other;
+    other = 1 - process;
+
+    interested[process] = true;
+    turn = process;
+
+    while(turn==process && interested[other]==true);
+}
+
+void leave_region(int process) {
+    interested[process] = false;
+}
+
+void* increment_count(void *arg) {
+    int *process = arg;
+    for(int i=0; i<MAX; i++) {
+        enter_region(*process);
+        count += 1;
+        leave_region(*process);
+    }
+
+    return NULL;
+}
+
+int main() {
+    pthread_t thread_1, thread_2;
+
+    int process_ids[2] = {0, 1}; // different memory for process IDs
+
+    pthread_create(&thread_1, NULL, increment_count, &process_ids[0]);
+    pthread_create(&thread_2, NULL, increment_count, &process_ids[1]);
+
+    for(int i = 0; i<N; i++) interested[i] = false;
+
+    pthread_join(thread_1, NULL);
+    pthread_join(thread_2, NULL);
+
+    printf("%d\n", count);
+
+    return 0;
+}
+```
 
 ## References
 
