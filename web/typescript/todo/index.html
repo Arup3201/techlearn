@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App UI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 50px 20px;
+    }
+
+    .todo-container {
+      background: #ffffff;
+      width: 100%;
+      max-width: 400px;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .todo-header {
+      font-size: 28px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    #todo-input {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 16px;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      outline: none;
+    }
+
+    #todo-list {
+      list-style: none;
+    }
+
+    .todo-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .todo-item:hover {
+      background: #f0f0f0;
+    }
+
+    .todo-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      margin-right: 15px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .todo-checkbox:checked {
+      background-color: #4caf50;
+      border-color: #4caf50;
+    }
+
+    .todo-checkbox:checked::after {
+      content: '✔';
+      color: white;
+      font-size: 14px;
+      position: absolute;
+      left: 3px;
+      top: -1px;
+    }
+
+    .todo-text {
+      font-size: 16px;
+      color: #333;
+    }
+
+    .todo-checkbox:checked + .todo-text {
+      text-decoration: line-through;
+      color: #aaa;
+    }
+
+    @media (max-width: 500px) {
+      .todo-container {
+        padding: 20px;
+      }
+
+      .todo-header {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="todo-container">
+    <div class="todo-header">My Todo List</div>
+    <input id="todo-input" type="text" placeholder="Add a new task..." >
+
+    <ul id="todo-list">
+      <li class="todo-item">
+        <input type="checkbox" class="todo-checkbox" id="todo1">
+        <label for="todo1" class="todo-text">Finish the UI design</label>
+      </li>
+      <li class="todo-item">
+        <input type="checkbox" class="todo-checkbox" id="todo2">
+        <label for="todo2" class="todo-text">Write documentation</label>
+      </li>
+      <li class="todo-item">
+        <input type="checkbox" class="todo-checkbox" id="todo3">
+        <label for="todo3" class="todo-text">Push to GitHub</label>
+      </li>
+    </ul>
+  </div>
+</body>
+<script src="script.js"></script>
+</html>
