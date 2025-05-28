@@ -12,4 +12,6 @@ todoInputHtml.addEventListener('keydown', function (e) {
     </li>
     `;
     ulistHtml.innerHTML += listHtml;
+    // clear input 
+    todoInputHtml.value = '';
 });
