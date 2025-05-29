@@ -233,6 +233,75 @@ int main() {
 }
 ```
 
+### Producer Consumer Problem 
+
+The methods discussed above need busy waiting which is not a good way to utilize CPU. Also it causes priority inversion problem - where low priority process may run indefinitely while blocking high priority process.
+
+`sleep` and `wakeup` are two system calls that can be used to prevent this problem. `sleep` call will block the process and it will only wakeup when another process calls the `wakeup` system call.
+
+Let's understand it using the producer consumer problem. 
+
+There are 2 processes - producer and consumer. There is a shared buffer of fixed size - producer puts information on the buffer, and the consumer takes it out.
+
+Following program shows the flow of producer and consumer -
+
+```c
+#define N 100
+#define count 0
+
+#define FALSE 0
+#define TRUE 1
+
+void producer(void) {
+	while(TRUE) {
+		item = produce_item();
+
+		if(count==N) sleep();
+
+		insert_item(item);
+		count = count + 1;
+
+		if(count==1) wakeup(consumer);
+	}
+}
+
+void consumer(void) {
+	while(TRUE) {
+		if(count==0) sleep();
+		
+		item = remove_item();
+		count = count - 1;
+
+		if(count==N-1) wakeup(producer);
+	}
+}
+```
+
+The problem happens because there is no constraint when accessing `count`. Let's take one scenario - buffer is empty, consumer reads `count` and notice that it is 0. Suddenly scheduler switches to producer. Producer notices that `count` is 0, puts one item in the buffer, increases `count`, and then `wakeup` consumer. Consumer is already woke up so the signal just gets lost. The execution comes to consumer, resuming it's previous flow it goes to `sleep` because `count` is 0. Sonner or later producers fills the buffer, and goes to sleep as well. Now, both will sleep forever.
+
+This problem can be solved if we can somehow manage the wakeup call that was lost. Due to this, the consumer failed to wakeup and both slept forever. So, we will keep a *wakeup waiting bit*. When a wakeup call is sent to a process that is still awake, this bit is set. Later when the process goes for sleep, we turn this bit off but the process stays awake. But the problem can easily grow, and we will need to include more of those waiting bits if more than 2 processes get involved.
+
+That is why *semaphores* are introduced.
+
+### Semaphores 
+
+---
+
+A useful way to think of a semaphore as used in a real-world system is as a record of how many units of a particular resource are available, coupled with operations to adjust that record safely (i.e., to avoid race conditions) as units are acquired or become free, and, if necessary, wait until a unit of the resource becomes available.
+
+Semaphores that allow an arbitrary resource count are called counting semaphores, while semaphores that are restricted to the values 0 and 1 (or locked/unlocked, unavailable/available) are called binary semaphores and are used to implement locks.
+
+**Library analogy**: 
+
+Suppose a physical library has ten identical study rooms, to be used by one student at a time. Students must request a room from the front desk. If no rooms are free, students wait at the desk until someone relinquishes a room. When a student has finished using a room, the student must return to the desk and indicate that the room is free.
+
+In this scenario, the front desk count-holder represents a counting semaphore, the rooms are the resource, and the students represent processes/threads. The value of the semaphore in this scenario is initially 10, with all rooms empty. When a student requests a room, they are granted access, and the value of the semaphore is changed to 9. After the next student comes, it drops to 8, then 7, and so on. If someone requests a room and the current value of the semaphore is 0,[2] they are forced to wait until a room is freed (when the count is increased from 0). If one of the rooms was released, but there are several students waiting, then any method can be used to select the one who will occupy the room (like FIFO or randomly picking one). And of course, a student must inform the clerk about releasing their room only after really leaving it.
+
+> Taken from Wikipedia (https://en.wikipedia.org/wiki/Semaphore_(programming)
+
+---
+
+
 ## References
 
 1. [Operating Systems - Design and Implementation (MINIX 3)](https://csc-knu.github.io/sys-prog/books/Andrew%20S.%20Tanenbaum%20-%20Operating%20Systems.%20Design%20and%20Implementation.pdf)
