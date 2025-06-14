@@ -301,6 +301,57 @@ In this scenario, the front desk count-holder represents a counting semaphore, t
 
 ---
 
+A semaphore that has value 0 indicates that no wakeups are saved, or some positive value if one or more wakeups are pending. Semaphore has two operations - `down` and `up`. `down` operation decrements the semaphore value if it is more than 0, but if it is 0 then the process goes to sleep without completing the down. `up` operation will increment the semaphore value by 1. If there were processes that were sleeping on semaphore, due to `up` operation they will wakeup and perform their pending `down` operation - resulting at no change in semaphore value. In this case, due to `up` there is no change in semaphore but one process woke up.
+
+Decrementing the semaphore and going to sleep if value is 0 or incrementing the semaphore and waking up sleeping process - both are *single indivisible atomic* operations.
+
+To solve the producer-consumer problem using semaphore, we use `mutex` for achieving mutual exclusion, `full` to keep track of buffer items and `empty` to keep track of empty buffer slots.
+
+```c
+#include<stdio.h>
+#define TRUE 1
+#define FALSE 0
+#define N 10 // buffer size
+
+typedef int semaphore;
+
+semaphore full=0; // counts full buffer slots
+semaphore empty=N; // counts empty buffer slots
+semaphore mutex=1; // controls access to critical region
+
+void producer() {
+	int item;
+
+	while(TRUE) {
+		item=produce_item();
+		down(&empty);
+		down(&mutex);
+		insert_item(item); // critical section
+		up(&mutex);
+		up(&full);
+	}
+}
+
+void consumer() {
+	int item;
+
+	while(TRUE) {
+		down(&full);
+		down(&mutex);
+		item=remove_item();
+		up(&mutex);
+		up(&empty);
+		consume_item(item);
+	}
+}
+
+int main() {
+	
+	return 0;
+}
+```
+
+`mutex` is used as **binary semaphore** , but `full` and `empty` are used for synchronization. In this case, they are used to ensure that producer stops running when buffer is full, and consumer stops running when buffer is empty.
 
 ## References
 
