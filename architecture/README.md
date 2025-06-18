@@ -10,7 +10,7 @@ The smallest unit of information in a digital system is **bit**. A bit is binary
 
 The processor contains 5 8-bit registers - A, X, Y, S and P. A register works as the accumulator for arithmetic operations. X and Y can be used as index registers in calculating memory addresses. Another register is there which is 16-bit. It is the PC register. It is the program counter that points to the next instruction to be executed by the processor. Because of 16-bit size it can access all the memory addresses in 6502 microprocessor. Every instruction has 1-byte opcode, another 2 bytes optional operands depending on the type of instruction.
 
-
+The S register is the stack pointer. It points to memory address of range $0100 to $01FF. The stack memory of 256-bytes is used for temporary storage of parameters in subroutines, stores the return address when a subroutine is called.
 
 To learn more about the instruction set, go visit this [site](http://www.6502.org/users/obelisk/6502/instructions.html).
 
