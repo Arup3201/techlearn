@@ -16,15 +16,37 @@ To learn more about the instruction set, go visit this [site](http://www.6502.or
 
 If you want to emulate the 6502 microprocessor instructions, use this [easy 6502 by skilldrick](https://skilldrick.github.io/easy6502/).
 
-## Digital Circuits
+## Processor Elements
 
-### Electrical circuit 
+Following processor elements are the ones we are learning -
 
-V = IR - Ohm's Law
+- a simple processor
+- instruction set
+- addressing modes
+- instruction categories
+- interrupt processing
+- input/output operations
 
-If we take the example of a pipe, the pressure of the water is the voltage V. The speed at which the water flows is the current I and the resistance the water feels due to the faucet of the pipe is R.
+### A simple processor
 
-If we increase the faucet or the size of the valve at the beginning of the pipe, the water pressure will increase, if we increase the resistance then water speed will decrease. More water pressure means more water speed.
+The integrated circuit at the core of a computer is known as **central processing unit** (CPU), microprocessor or simply processor. A microprocessor is the single integrated circuit that implements the functions of the processor.
 
-A circuit has multiple parts. There is a battery, wire and current. Batter has two ends, one end has zero voltage which is the voltage reference point - with a voltage of zero.
+A typical processor has three logically distinct functional units -
 
+- **Control unit** manages the overall operation of the device. It executes the next instruction, decoding the instruction to determine the operation to perform, and distributing the execution of the instructions to appropriate elements.
+- **Arithmetic logic unit**(ALU) is a combinational circuit that does arithmetic operations and bit manipulation operations.
+- **Register set**: provides temporary storage as well as source and destination locations for instruction inputs and outputs.
+
+The following diagram shows the connection between control unit, ALU, registers and memory input/outputs -
+
+![interaction between processor elements](./images/processor.png)
+
+### Control Unit
+
+Control unit interpret the processor instructions and manage their execution by calling other functional components of the processor and also using memory which is an external element.
+
+Memory here refers to *Random Access Memory*(RAM). Here memory components could be keyboard, mouse, speaker, microphone, disk, graphical video displays. It could also be other common I/O devices like network interfaces, Wi-Fi and Bluetooth.
+
+When a computer is powered on, it resets all internal components to a defined value. Then the CPU loads the **Program Counter**(PC) register with the memory location of the first instruction. Software engineers who write the lowest level software systems must configure their developement tools to produce a *code memory* that begins execution at the address required by the processor architecture.
+
+> "code memory" is the segment where the processor instructions are stored.
