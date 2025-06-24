@@ -50,3 +50,31 @@ Memory here refers to *Random Access Memory*(RAM). Here memory components could 
 When a computer is powered on, it resets all internal components to a defined value. Then the CPU loads the **Program Counter**(PC) register with the memory location of the first instruction. Software engineers who write the lowest level software systems must configure their developement tools to produce a *code memory* that begins execution at the address required by the processor architecture.
 
 > "code memory" is the segment where the processor instructions are stored.
+
+**How control unit uses program counter?** 
+
+*PC* is a central component of the control unit. The *PC* register contains memory of the next instruction to be executed. Control unit will read the instruction from the memory indicated by the *PC*, store the instruction in the internal register to decode and execute. 
+
+Every instruction starts with an **opcode** and control unit decides what to do based on the opcode. Depending on the opcode bit pattern, it may have to read additional memory locations to retrive data needed for the instructions like memory address or operand.
+
+**Instruction execution cycle**
+
+As the control unit finish it's reset process; it starts the instruction execution.
+
+1. It reads the next instruction from the memory indicated by the program counter.
+2. It stores the instruction in internal register and decodes it.
+3. Checks whether it is a branch instruction.
+4. If it is a branch instruction, then it will update the PC. Otherwise, it will execute the instruction and increment PC.
+
+Following diagram illustrates the cycle:
+
+![Instruction execution cycle](./images/instruction-execution-cycle.png)
+
+Instructions are divided into 2 parts - branching instructions and all other instructions. 
+
+Branching instructions are the conditional branching (when the branch is taken), unconditional branching (*jump* statement), subroutine calls, subroutine returns etc. Branching instructions cause the contents of the PC to be replaced by the memory address of the branch statement.
+
+The steps in executing the instruction includes reading from register/writing to a register, reading from a memory/writing to a memory, directing the ALU to perform mathematical operations or some other miscellanious activities.
+
+In most processor, the execution of an instructions takes several clock cycles to finish. Depending on the complexity of the task, it may take small number of clock cycles or more numbers of clock cycles.
+
