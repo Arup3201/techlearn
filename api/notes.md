@@ -205,3 +205,40 @@ REST stands for REpresentational State Transfer.
 HTTP is the only commercially important implementation of REST API. REST is a bit confusing in different places, so we can avoid confusing by bringing HTTP to understand REST.
 
 HTTP is the complete inverse of RPC. For RPC, the addressable units are procedures and the entities are hidden behind the procedures. In HTTP, the entities are the addressable unit, and the behaviours are hidden behind the entities as side effects of creating, updating or deleting them.
+
+### HTTP Verbs
+
+**GET**
+
+*GET* is the simplest type of HTTP request method; the one that browsers use each time you click a link or type a URL into the address bar. It instructs the server to transmit the data identified by the URL to the client. Data should never be modified on the server side as a result of a GET request. In this sense, a GET request is read-only.
+
+**DELETE**
+
+DELETE is pretty easy to understand. It is used to delete a resource identified by a URI.
+
+On successful deletion, return HTTP status 200 (OK) along with a response body, perhaps the representation of the deleted item (often demands too much bandwidth), or a wrapped response. Either that or return HTTP status 204 (NO CONTENT) with no response body. In other words, a 204 status with no body, or the JSON-style response and HTTP status 200.
+
+**POST**
+
+- If the client sends data without any identifier, then we will store the data and assign/generate a new identifier.
+- If the client again sends the same data without any identifier, then we will store the data and assign/generate a new identifier.
+
+In short, *POST* is always for creating a resource ( does not matter if it was duplicated )
+
+>> Duplication is allowed here.
+
+**PUT**
+
+- If the client sends data with an identifier, then we will check whether that identifier exists. 
+- If the identifier exists, we will update the resource with the data, else we will create a resource with the data and assign/generate a new identifier.
+
+In short, *PUT* is for checking if resource exists then update, else create new resource.
+
+**PATCH**
+
+- If the client sends data with an identifier, then we will check whether that identifier exists. 
+- If the identifier exists, we will update the resource with the data, else we will throw an exception.
+
+In short, *PATCH* is always for updating a resource.
+
+>> On the PUT method, we are not throwing an exception if an identifier is not found. But in the PATCH method, we are throwing an exception if the identifier is not found.
