@@ -78,3 +78,14 @@ The steps in executing the instruction includes reading from register/writing to
 
 In most processor, the execution of an instructions takes several clock cycles to finish. Depending on the complexity of the task, it may take small number of clock cycles or more numbers of clock cycles.
 
+### Example
+
+We can see how the instruction is executed with a simple example. There are two types of instructions - *TXA*, *TYA*. They are used to copy the data from X and Y register to A register respectively.
+
+It happens through a multiplexer who selects any of the register between X and Y dependind on the **Select** bit, and copy that data to A register.
+
+Here are the 3 steps that it follows -
+
+1. The control unit first sets the **Select** input to directs the X register data bits to the output of the multiplexer. This presents the X data bits at the input of the A register.
+2. After the **Select** input is set, control unit needs to pause for the propagation of the data bits to multiplexer outputs.
+3. After the multiplexer output bits have stabilized, control unit will generate a rising edge of the **CLK** signal to load the data bits into A register.
