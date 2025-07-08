@@ -1,5 +1,15 @@
 # Computer Organization and Architecture
 
+## Difference between Computer Architecture and Organization
+
+**Computer architecture** is the structure and behaviour of a computer as viewed by an user who uses machine or assembly language to program the computer. An assembly programmer needs to be aware about the computers processor (its instruction sets), its instruction formats, how to access stored data from the memory, how to perform input/output operations etc. Computer architecture gives them the external view of those things of that computer.
+
+On the other hand, **computer organization** is about how the computer hardware works and how they are connected together to make the computer work. It shows how computer components operate and interact with each other while executing a program. Essentially, it is the internal view of a computer and the roles that the internal components play at program execution.
+
+If we look at it from top to bottom, then the top-most will be *application program* that is written in any high-level language like C++, Java or Python. Application program is machine independent, then this program is converted to machine dependent code by compiler which is a *system program*. System programs direcly interact with computer harwares so they are built for a specific computer architecture. 
+
+Computer architecture is like a contract between system engineer and hardware designer. If a system engineer want to program something, he has to use the computer architecture. A hardware designer implements the computer architecture to come at a certain computer organization.
+
 ## Bit and Byte
 
 The smallest unit of information in a digital system is **bit**. A bit is binary which holds either of the two values 0 or 1. A number of bits are placed together to represent larger range of values. A **byte** is composed of 8 bits together to form a value. The byte is the smallest unit of information that be read from or written to by most modern processor.
